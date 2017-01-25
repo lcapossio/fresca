@@ -20,8 +20,9 @@ LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 #define LCD_WIDTH 16
 #define LCD_HEIGHT 2
 
+#define KEYPAD_PIN 0
 //Analog Keypad on the LCD
-DFR_Key keypad(0); //Keypad on analog pin A0
+DFR_Key keypad(KEYPAD_PIN); //Keypad on analog pin A0
 
 //
 // 7-segment display
@@ -36,11 +37,32 @@ OneWire  ds0(6);
 
 
 //Global variables
+#define DEG_25 400
 int16_t  TempReading[NUM_DS1820_SENSORS] = {0};
-byte showtempLCD = 0;
-int  CoolOnThresh[NUM_DS1820_SENSORS] = {0};
-int  CoolOffThresh[NUM_DS1820_SENSORS] = {0};
-int  OffsetSensor[NUM_DS1820_SENSORS] = {0};
+byte showtempLCD = 0; //Set to the Sensor number you want to display in the LCD (0: sensor0)
+int16_t  CoolOnThresh[NUM_DS1820_SENSORS]  = {24*16};
+int16_t  CoolOffThresh[NUM_DS1820_SENSORS] = {25*16};
+int16_t  OffsetSensor[NUM_DS1820_SENSORS]  = {0};
+
+bool ShowTempLCD(int16_t temp, bool show_error)
+{
+    // Separate off the whole and fractional portions, since sprintf doesn't support printing floats!!! SHAME! even if compute intensive it should be supported
+    char print_buf[MAX_BUF_CHARS];
+    bool SignBit;
+    int16_t Whole; byte Fract;
+    
+    SignBit  = (temp < 0) ? true : false;           // test most sig bit
+    Whole = SignBit ? -temp : temp;  //Complement if negative
+    Fract = Whole&0xF; //Leave only the fractional bits
+    Whole = Whole>>4;  //Divide by 16 to get the whole part
+
+    //Print in the second row
+    snprintf(print_buf, LCD_WIDTH+1, "%c%02d.%u\xDF C%s", SignBit ? '-':'+', Whole, Fract, show_error ? "  ERR!     " : "          "); //0xDF is ? in the LCD char set
+    lcd.setCursor(0,1);
+    lcd.print(print_buf);
+    
+    return true;
+}
 
 void setup(void) 
 {
@@ -65,8 +87,12 @@ void setup(void)
 
     //Initialize Display
     Serial.print("Initializing 7-segment displays...");
-    display.setBrightness(0x0f);
-    display.showNumberDec(1337, true);
+    display.setBrightness(0x0f,true); //Turn-on
+    display.showNumberDec(1305, true);
+    delay(400);
+    display.setBrightness(0x00,false);//Turn-off
+    delay(400);
+    display.setBrightness(0x0f,true); //Turn-on
     Serial.print("Done!");Serial.println();
 
     //Initialize temperature sensors
@@ -103,15 +129,22 @@ void setup(void)
     TCCR1A = 0;
     TCCR1B = 0;
     TCNT1  = 0;
-    OCR1A  = (unsigned) ((16e6L/256.0)*0.8);         // Compare match register (16MHz/256)*Segs = (16e6/256)*0.8Seg, if using 256 prescaler
+    OCR1A  = (unsigned) ((16.0e6/256.0)*0.8);         // Compare match register (16MHz/256)*Segs = (16e6/256)*0.8Seg, if using 256 prescaler
     TCCR1B |= (1 << WGM12);   // CTC mode
     TCCR1B |= (1 << CS12);    // 256 prescaler 
     TIMSK1 |= (1 << OCIE1A);  // enable timer compare interrupt
     Serial.print("Done!");Serial.println();
     
-    Serial.print("***Starting main program...");Serial.println();
+    Serial.print("***************************");Serial.println();
+    Serial.print("***Starting main program***");Serial.println();
+    Serial.print("***************************");Serial.println();
+    
     delay(1000);
     interrupts(); sei();// enable all interrupts
+    
+    //Print first message
+    lcd.setCursor(0,0);
+    lcd.print("Temp sensor 0         ");
 }
 
 // timer compare interrupt service routine
@@ -135,15 +168,13 @@ ISR(TIMER1_COMPA_vect)
         {
             ds0.skip();         //SkipROM command, we only have one sensor per wire
             ds0.write(0xBE);    // Read Scratchpad
-            Serial.print("  Data = ");
-            Serial.print(" ");
-            for ( i = 0; i < 9; i++) 
+            Serial.print("Data =");
+            for ( i = 0; i < 9; i++)
             {
                 // Read 9 bytes
                 data[i] = ds0.read();
-                Serial.print("0x");
+                Serial.print(" 0x");
                 Serial.print(data[i], HEX);
-                Serial.print(" ");
             }
 
             //Immediately restart temperature conversion
@@ -156,14 +187,12 @@ ISR(TIMER1_COMPA_vect)
             crc_err = (OneWire::crc8(data, 9)==0) ? false : true;
             if (!crc_err)
             {
-                Serial.print(" CRC OK ");Serial.println();
+                Serial.print(" CRC OK");Serial.println();
                 
                 LowByte  = data[0]; //Temp low byte
                 HighByte = data[1]; //Temp high byte
                 TempReading[sensor] = (HighByte << 8) + LowByte;
                 TempReading[sensor] += OffsetSensor[sensor]; //Remove offset (if calibrated)
-                // SignBit  = TempReading[sensor] & 0x8000;  // test most sig bit
-                // TempReading[sensor] = SignBit ?  0xffff0000 | TempReading[sensor] : TempReading[sensor]; //Sign extend if negative to 32-bits
             }
             else
             {
@@ -179,32 +208,40 @@ ISR(TIMER1_COMPA_vect)
         //////////////////////////////////////////////////////////////////
         //Printing
         //////////////////////////////////////////////////////////////////
+        
+        // float TempFloat;
+        // TempFloat = ((float)TempReading[sensor])*(1.0/16.0); //Can't do a shift, that is bullshit, floting point divide is not cheap man, not cool
 
         //7-segment
-        display.showNumberDecEx((TempReading[sensor]*(100<<4))>>4, 0x10, true); //Format to display in 4 7-segment chars (multiply by 100, then remove fractional bits)
-        
-        // separate off the whole and fractional portions
-        // Whole = TempReading[sensor]>>4;  //Divide by 16 to get the whole part
-        // Fract = TempReading[sensor]&0xF; //Leave only the fractional bits
-        float TempFloat;
+        int32_t DispTemp32;
+        DispTemp32=( ((int32_t)TempReading[sensor]) * 100 ) >> 4; //Promote to 32-bits for the 7-seg display
+        // sprintf(print_buf,"7-seg debug: %d\n", (unsigned)DispTemp32);
+        // Serial.print(print_buf);
+        display.showNumberDecEx((unsigned)DispTemp32, 0x10, true, 4, 0); //Format to display in 4 7-segment chars (multiply by 100, then remove fractional bits)
+        // display.showNumberDecEx(3333, 0x10, true); //Format to display in 4 7-segment chars (multiply by 100, then remove fractional bits)
 
-        TempFloat = ((float)TempReading[sensor])*(1.0/16.0); //Can't do a shift, that is bullshit, floting point divide is not cheap man, not cool
+        // Separate off the whole and fractional portions, since sprintf doesn't support printing floats!!! SHAME! even if compute intensive it should be supported
+        bool SignBit;
+        int16_t Whole; byte Fract;
         
-        //Serial
-        sprintf(print_buf," Temperature sensor %d: %+2.2f\xA7 C\n",sensor, TempFloat); //0xA7 is ? in ASCII
+        SignBit  = (TempReading[sensor] < 0) ? true : false;           // test most sig bit
+        Whole = SignBit ? -TempReading[sensor] : TempReading[sensor];  //Complement if negative
+        Fract = Whole&0xF; //Leave only the fractional bits
+        Whole = Whole>>4;  //Divide by 16 to get the whole part
+        
+        //Serial debug
+        // sprintf(print_buf,"Interrupt debug: %u\n", (unsigned) ((16.0e6/256.0)*0.8));
+        // Serial.print(print_buf);
+
+        // sprintf(print_buf,"Temp debug: %d %f %f %f\n", TempReading[sensor], TempFloat, (float)TempReading[sensor], 1.0/16.0);
+        // Serial.print(print_buf);
+        sprintf(print_buf,"Temperature sensor %d: %c%02d.%u ?C\n", sensor, SignBit ? '-':'+', Whole, Fract); //0xA7 is ? in ASCII
         Serial.print(print_buf);
-
+        
         //LCD
         if (showtempLCD == sensor)
         {
-            //First row
-            snprintf(print_buf, LCD_WIDTH+1+1, "Temp sensor %d         ",sensor);
-            lcd.setCursor(0,0);
-            lcd.print(print_buf);
-            //Second row
-            snprintf(print_buf, LCD_WIDTH+1+1, "%+2.2f\xDF C%s", TempFloat, (crc_err)||(!present) ? "  ERR!     " : "          "); //0xDF is ? in the LCD char set
-            lcd.setCursor(0,1);
-            lcd.print(print_buf);
+            ShowTempLCD(TempReading[sensor],(crc_err)||(!present));
         }
     }
 }
@@ -256,6 +293,9 @@ void loop(void)
     {
         localKey = tempKey;
         
+        sprintf(print_buf,"Key press: %d - %d\n", localKey, analogRead(KEYPAD_PIN));
+        Serial.print(print_buf);
+        
         switch (state)
         {
             case st_show_temp:
@@ -279,6 +319,10 @@ void loop(void)
                 }
                 showtempLCD=currSensor;
                 digitalWrite(RELAY_PIN, LOW);
+                //Print first row only
+                snprintf(print_buf, LCD_WIDTH+1, "Temp sensor %d         ",currSensor);
+                lcd.setCursor(0,0);
+                lcd.print(print_buf);
             break;
             
             case st_change_CoolOn:
@@ -289,22 +333,23 @@ void loop(void)
                         state = st_change_CoolOff;
                     break;
                     case RIGHT_KEY:
-                        
+                        CoolOnThresh[currSensor]+8; //0.5? Steps
                     break;
                     case LEFT_KEY:
-                        
+                        CoolOnThresh[currSensor]-8; //0.5? Steps
                     break;
                     default:
                         //Unsupported key
                         state = st_show_temp;
                     break;
                 }
+                //First row
                 snprintf(print_buf, LCD_WIDTH+1, "CoolOn sensor %d",currSensor);
                 lcd.setCursor(0,0);   //First row
                 lcd.print(print_buf);
-                // snprintf(print_buf, LCD_WIDTH+1, "%c%d.%d\223C",SignBit ? '-' : '+', Whole, Fract);
-                lcd.setCursor(0,1);   //Second row
-                lcd.print(print_buf);
+                //Second row
+                ShowTempLCD(CoolOnThresh[currSensor],false);
+                //Relay
                 digitalWrite(RELAY_PIN, HIGH);
             break;
         
@@ -316,10 +361,10 @@ void loop(void)
                         state = st_calib_sensor;
                     break;
                     case RIGHT_KEY:
-                        
+                        CoolOffThresh[currSensor]+8; //0.5? Steps
                     break;
                     case LEFT_KEY:
-                        
+                        CoolOffThresh[currSensor]-8; //0.5? Steps
                     break;
                     default:
                         //Unsupported key
@@ -329,9 +374,9 @@ void loop(void)
                 snprintf(print_buf, LCD_WIDTH+1, "CoolOff sensor %d",currSensor);
                 lcd.setCursor(0,0);   //First row
                 lcd.print(print_buf);
-                // snprintf(print_buf, LCD_WIDTH+1, "%c%d.%d\223C",SignBit ? '-' : '+', Whole, Fract);
-                lcd.setCursor(0,1);   //Second row
-                lcd.print(print_buf);
+                //Second row
+                ShowTempLCD(CoolOffThresh[currSensor],false);
+                //
                 digitalWrite(RELAY_PIN, LOW);
             break;
             
@@ -343,10 +388,10 @@ void loop(void)
                         state = st_show_temp;
                     break;
                     case RIGHT_KEY:
-                        
+                        OffsetSensor[currSensor]+4; //0.25? Steps
                     break;
                     case LEFT_KEY:
-                        
+                        OffsetSensor[currSensor]-4; //0.25? Steps
                     break;
                     default:
                         //Unsupported key
@@ -356,9 +401,9 @@ void loop(void)
                 snprintf(print_buf, LCD_WIDTH+1, "Off calib sensor %d",currSensor);
                 lcd.setCursor(0,0);   //First row
                 lcd.print(print_buf);
-                // snprintf(print_buf, LCD_WIDTH+1, "%c%d.%d\223C",SignBit ? '-' : '+', Whole, Fract);
-                lcd.setCursor(0,1);   //Second row
-                lcd.print(print_buf);
+                //Second row
+                ShowTempLCD(OffsetSensor[currSensor],false);
+                //Relay
                 digitalWrite(RELAY_PIN, HIGH);
             break;
             
