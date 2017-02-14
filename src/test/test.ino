@@ -1,12 +1,30 @@
-//Leonardo Capossio for 'fresca' project
-//Basic test of peripherals LCD, 7Seg display and Temperature sensor
+/*
+*********************************************************************************************
+** Author: Leonardo Capossio
+** Project: 'fresca'
+** Description:
+**             Basic test of peripherals LCD, 7Seg, relay, keypad and Temperature sensor
+**             Connections in Arduino Mega 2560: 
+**             *DS18B20 on pin6
+**             *Relay on pin9
+**             *Analog Keypad on pin A0
+**             *Hitachi HD44780 LCD on pins: 12, 11, 5, 4, 3, 2
+**             *TM1637 7-seg on pins: CLK pin8, DIO pin7
+**             
+**             This program will correctly display temperature on the LCD and 7-seg displays
+**             The menu can be navigated by pressing the 'Select' key, which will cycle through:
+**             temperature display, CoolOn threshold setting, CoolOff threshold setting and Offset calibration setting
+**             The CoolOn and CoolOff settings can be modified by pressing the right/left keys,
+**             Which will in turn activate the relay when the temperature falls below CoolOn,
+**             and will turn the relay off when the temperature rises above CoolOff
+*********************************************************************************************
+*/
 
 #include <LiquidCrystal.h>
 #include <TM1637Display.h>
 #include <OneWire.h>
 #include <DFR_Key.h>
 #include <EEPROM.h>
-//#include <stdint.h> //For exact integer data types
 
 #define DO_DEBUG 1
 #define MAX_BUF_CHARS  64
@@ -15,14 +33,13 @@
 
 //EEPROM
 #define EEPROM_MAGIC_VAR_ADDR 0                   //Byte variable stored in this location indicates EEPROM has been written previously
-#define EEPROM_MAGIC_VAR_VALUE 59
+#define EEPROM_MAGIC_VAR_VALUE 0x5A
 #define EEPROM_START_ADDR 1
-#define EEPROM_BLOCKSIZE  sizeof(int16_t)*3 //CoolOn, CoolOff, Offset
+#define EEPROM_BLOCKSIZE  sizeof(int16_t)*3 //Each block contains: CoolOn, CoolOff, Offset
 #define EEPROM_ADDR_INCR  sizeof(int16_t)
 
 //Relays
 #define RELAY_PIN 9
-int g_CoolSwitch[NUM_DS1820_SENSORS] = {RELAY_PIN};
 
 //LCD 16x2 based on the Hitachi HD44780 controller
 //initialize the library with the numbers of the interface pins
@@ -30,8 +47,8 @@ LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 #define LCD_WIDTH 16
 #define LCD_HEIGHT 2
 
-#define KEYPAD_PIN 0
 //Analog Keypad on the LCD
+#define KEYPAD_PIN 0 //A0
 DFR_Key keypad(KEYPAD_PIN); //Keypad on analog pin A0
 
 //
@@ -43,14 +60,15 @@ TM1637Display display(SEVENSEG_CLK, SEVENSEG_DIO);
 /* DS18S20 Temperature chip i/o */
 #define SENSOR0_PIN 6
 OneWire ds0(SENSOR0_PIN);
+#define TEMP_POLL_SEC 0.8
 
 //Global variables
-#define DEG_25 400
 byte     g_showtempLCD = 0; //Set to the Sensor number you want to display in the LCD (0: sensor0)
 int16_t  g_TempReading[NUM_DS1820_SENSORS] = {0};
 int16_t  g_CoolOnThresh[NUM_DS1820_SENSORS]  = {24*16};
 int16_t  g_CoolOffThresh[NUM_DS1820_SENSORS] = {25*16};
 int16_t  g_OffsetSensor[NUM_DS1820_SENSORS]  = {0};
+int      g_CoolSwitch[NUM_DS1820_SENSORS] = {RELAY_PIN}; //Contains pin number for relay index
 
 //Prints temperature in the second row of the LCD
 bool PrintTempLCD(int16_t temp, bool show_error)
@@ -185,7 +203,7 @@ void setup(void)
     TCCR1A = 0;
     TCCR1B = 0;
     TCNT1  = 0;
-    OCR1A  = (unsigned) ((16.0e6/256.0)*0.8);         // Compare match register (16MHz/256)*Segs = (16e6/256)*0.8Seg, if using 256 prescaler
+    OCR1A  = (unsigned) ((16.0e6/256.0)*TEMP_POLL_SEC);         // Compare match register (16MHz/256)*Segs = (16e6/256)*0.8Seg, if using 256 prescaler
     TCCR1B |= (1 << WGM12);   // CTC mode
     TCCR1B |= (1 << CS12);    // 256 prescaler 
     TIMSK1 |= (1 << OCIE1A);  // enable timer compare interrupt
