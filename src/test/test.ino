@@ -32,6 +32,7 @@
 #define NUM_DS1820_SENSORS 1 //One sensor per wire
 #define MAX_TEMP 30*16
 #define MIN_TEMP 5*16
+#define DEG_0_5 8 //0.5deg*16
 
 //EEPROM
 #define EEPROM_MAGIC_VAR_ADDR 0             //Byte variable stored in this location indicates EEPROM has been written previously
@@ -344,12 +345,12 @@ int UpdateCoolOn(int currVal, int CoolOffVal, bool inc_dec)
     if (inc_dec)
     {
         //Increment
-        currVal+=8;
+        currVal+=DEG_0_5;
     }
     else
     {
         //Decrement
-        currVal-=8;
+        currVal-=DEG_0_5;
     }
     
     //Check limits
@@ -357,9 +358,9 @@ int UpdateCoolOn(int currVal, int CoolOffVal, bool inc_dec)
     {
         currVal = MAX_TEMP;
     }
-    else if (currVal < CoolOffVal+8)
+    else if (currVal < CoolOffVal+DEG_0_5)
     {
-        currVal = CoolOffVal+8;
+        currVal = CoolOffVal+DEG_0_5;
     }
     
     return currVal;
@@ -371,12 +372,12 @@ int UpdateCoolOff(int currVal, int CoolOnVal, bool inc_dec)
     if (inc_dec)
     {
         //Increment
-        currVal+=8;
+        currVal+=DEG_0_5;
     }
     else
     {
         //Decrement
-        currVal-=8;
+        currVal-=DEG_0_5;
     }
     
     //Check limits
@@ -384,9 +385,9 @@ int UpdateCoolOff(int currVal, int CoolOnVal, bool inc_dec)
     {
         currVal = MIN_TEMP;
     }
-    else if (currVal > CoolOnVal-8)
+    else if (currVal > CoolOnVal-DEG_0_5)
     {
-        currVal = CoolOnVal-8;
+        currVal = CoolOnVal-DEG_0_5;
     }
     
     return currVal;
@@ -483,11 +484,11 @@ void loop(void)
                 break;
                 case RIGHT_KEY:
                     //Increment
-                    UpdateCoolOn(g_CoolOnThresh[currSensor],g_CoolOffThresh[currSensor],true); //0.5deg Steps
+                    g_CoolOnThresh[currSensor]=UpdateCoolOn(g_CoolOnThresh[currSensor],g_CoolOffThresh[currSensor],true); //0.5deg Steps
                 break;
                 case LEFT_KEY:
                     //Decrement
-                    UpdateCoolOn(g_CoolOnThresh[currSensor],g_CoolOffThresh[currSensor],false); //0.5deg Steps
+                    g_CoolOnThresh[currSensor]=UpdateCoolOn(g_CoolOnThresh[currSensor],g_CoolOffThresh[currSensor],false); //0.5deg Steps
                 break;
                 default:
                     //Unsupported key
@@ -513,11 +514,11 @@ void loop(void)
                 break;
                 case RIGHT_KEY:
                     //Increment
-                    UpdateCoolOn(g_CoolOffThresh[currSensor],g_CoolOnThresh[currSensor],true); //0.5deg Steps
+                    g_CoolOffThresh[currSensor]=UpdateCoolOff(g_CoolOffThresh[currSensor],g_CoolOnThresh[currSensor],true); //0.5deg Steps
                 break;
                 case LEFT_KEY:
                     //Decrement
-                    UpdateCoolOn(g_CoolOffThresh[currSensor],g_CoolOnThresh[currSensor],false); //0.5deg Steps
+                    g_CoolOffThresh[currSensor]=UpdateCoolOff(g_CoolOffThresh[currSensor],g_CoolOnThresh[currSensor],false); //0.5deg Steps
                 break;
                 default:
                     //Unsupported key
