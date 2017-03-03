@@ -30,9 +30,11 @@
 #define MAX_BUF_CHARS  64
 #define USE_CRC  0
 #define NUM_DS1820_SENSORS 1 //One sensor per wire
+#define MAX_TEMP 30*16
+#define MIN_TEMP 5*16
 
 //EEPROM
-#define EEPROM_MAGIC_VAR_ADDR 0                   //Byte variable stored in this location indicates EEPROM has been written previously
+#define EEPROM_MAGIC_VAR_ADDR 0             //Byte variable stored in this location indicates EEPROM has been written previously
 #define EEPROM_MAGIC_VAR_VALUE 0x5A
 #define EEPROM_START_ADDR 1
 #define EEPROM_BLOCKSIZE  sizeof(int16_t)*3 //Each block contains: CoolOn, CoolOff, Offset
@@ -64,16 +66,16 @@ OneWire ds0(SENSOR0_PIN);
 
 //Global variables
 byte     g_showtempLCD = 0; //Set to the Sensor number you want to display in the LCD (0: sensor0)
-int16_t  g_TempReading[NUM_DS1820_SENSORS] = {0};
+int16_t  g_TempReading[NUM_DS1820_SENSORS]   = {0};
 int16_t  g_CoolOnThresh[NUM_DS1820_SENSORS]  = {24*16};
 int16_t  g_CoolOffThresh[NUM_DS1820_SENSORS] = {25*16};
 int16_t  g_OffsetSensor[NUM_DS1820_SENSORS]  = {0};
-int      g_CoolSwitch[NUM_DS1820_SENSORS] = {RELAY_PIN}; //Contains pin number for relay index
+int      g_CoolSwitch[NUM_DS1820_SENSORS]    = {RELAY_PIN}; //Contains pin number for relay index
 
 //Prints temperature in the second row of the LCD
 bool PrintTempLCD(int16_t temp, bool show_error)
 {
-    // Separate off the whole and fractional portions, since sprintf doesn't support printing floats!!! SHAME! even if compute intensive it should be supported
+    // Separate off the whole and fractional portions, since sprintf doesn't support printing floats!!!
     char print_buf[MAX_BUF_CHARS];
     bool SignBit;
     int16_t Whole, Fract;
@@ -84,10 +86,11 @@ bool PrintTempLCD(int16_t temp, bool show_error)
     Whole    = Whole>>4;                       //Divide by 16 to get the whole part
 
     //Print in the second row
-    snprintf(print_buf, LCD_WIDTH+1, "%c%02u.%02u\xDF C%s", SignBit ? '-':'+', Whole, Fract, show_error ? "  ERR!     " : "          "); //0xDF is ? in the LCD char set
+    snprintf(print_buf, LCD_WIDTH+1, "%c%02u.%02u\xDF C%s", SignBit ? '-':'+', Whole, Fract, show_error ? "  ERR!     " : "          "); //0xDF is *deg* in the LCD char set
     lcd.setCursor(0,1);
     lcd.print(print_buf);
     
+    //Always successful
     return true;
 }
 
@@ -104,7 +107,7 @@ bool SwitchCooling(byte sensor, bool state)
         digitalWrite(g_CoolSwitch[sensor], LOW);
     }
     
-    //Always success
+    //Always successful
     return true;
 }
 
@@ -237,6 +240,7 @@ ISR(TIMER1_COMPA_vect)
         
         if (present)
         {
+            //If sensor is present, read and update temperature
             ds0.skip();         //SkipROM command, we only have one sensor per wire
             ds0.write(0xBE);    // Read Scratchpad
             Serial.print("Data =");
@@ -258,7 +262,7 @@ ISR(TIMER1_COMPA_vect)
             crc_err = (OneWire::crc8(data, 9)==0) ? false : true; //CRC equal 0 over the whole scratchpad memory means CRC is correct
             if (!crc_err)
             {
-                Serial.print(" CRC OK");Serial.println();
+                Serial.print(" - CRC OK");Serial.println();
                 
                 LowByte  = data[0]; //Temp low byte
                 HighByte = data[1]; //Temp high byte
@@ -273,11 +277,12 @@ ISR(TIMER1_COMPA_vect)
         }
         else
         {
+            //If no sensor present (or error), leave the temperature unchanged
             Serial.print("***NO SENSOR***");Serial.println();
         }
 
         //////////////////////////////////////////////////////////////////
-        //Cooling
+        //Control Cooling
         //////////////////////////////////////////////////////////////////
         if (g_TempReading[sensor] <= g_CoolOnThresh[sensor])
         {
@@ -333,6 +338,60 @@ ISR(TIMER1_COMPA_vect)
     }
 }
 
+int UpdateCoolOn(int currVal, int CoolOffVal, bool inc_dec)
+{
+    //0.5deg Steps
+    if (inc_dec)
+    {
+        //Increment
+        currVal+=8;
+    }
+    else
+    {
+        //Decrement
+        currVal-=8;
+    }
+    
+    //Check limits
+    if (currVal > MAX_TEMP)
+    {
+        currVal = MAX_TEMP;
+    }
+    else if (currVal < CoolOffVal+8)
+    {
+        currVal = CoolOffVal+8;
+    }
+    
+    return currVal;
+}
+
+int UpdateCoolOff(int currVal, int CoolOnVal, bool inc_dec)
+{
+    //0.5deg Steps
+    if (inc_dec)
+    {
+        //Increment
+        currVal+=8;
+    }
+    else
+    {
+        //Decrement
+        currVal-=8;
+    }
+    
+    //Check limits
+    if (currVal < MIN_TEMP)
+    {
+        currVal = MIN_TEMP;
+    }
+    else if (currVal > CoolOnVal-8)
+    {
+        currVal = CoolOnVal-8;
+    }
+    
+    return currVal;
+}
+
 int SensorNext(int currSensor)
 {
     currSensor += currSensor;
@@ -380,10 +439,11 @@ void loop(void)
     if ((tempKey != SAMPLE_WAIT) && (tempKey != NO_KEY))
     {
         lastKey  = tempKey;
-        sprintf(print_buf,"Key press: %d - %d\n", lastKey, analogRead(KEYPAD_PIN));
+        // sprintf(print_buf,"Key press: %d - Analog value: %d\n", lastKey, analogRead(KEYPAD_PIN));
         Serial.print(print_buf);
     }
     
+    //Menu state machine
     switch (state)
     {
         case st_show_temp:
@@ -422,10 +482,12 @@ void loop(void)
                     EEPROM.put(currSensor*EEPROM_BLOCKSIZE+EEPROM_START_ADDR+0, g_CoolOnThresh[currSensor]);
                 break;
                 case RIGHT_KEY:
-                    g_CoolOnThresh[currSensor]+8; //0.5? Steps
+                    //Increment
+                    UpdateCoolOn(g_CoolOnThresh[currSensor],g_CoolOffThresh[currSensor],true); //0.5deg Steps
                 break;
                 case LEFT_KEY:
-                    g_CoolOnThresh[currSensor]-8; //0.5? Steps
+                    //Decrement
+                    UpdateCoolOn(g_CoolOnThresh[currSensor],g_CoolOffThresh[currSensor],false); //0.5deg Steps
                 break;
                 default:
                     //Unsupported key
@@ -450,10 +512,12 @@ void loop(void)
                     EEPROM.put(currSensor*EEPROM_BLOCKSIZE+EEPROM_START_ADDR+sizeof(int16_t), g_CoolOffThresh[currSensor]);
                 break;
                 case RIGHT_KEY:
-                    g_CoolOffThresh[currSensor]+8; //0.5? Steps
+                    //Increment
+                    UpdateCoolOn(g_CoolOffThresh[currSensor],g_CoolOnThresh[currSensor],true); //0.5deg Steps
                 break;
                 case LEFT_KEY:
-                    g_CoolOffThresh[currSensor]-8; //0.5? Steps
+                    //Decrement
+                    UpdateCoolOn(g_CoolOffThresh[currSensor],g_CoolOnThresh[currSensor],false); //0.5deg Steps
                 break;
                 default:
                     //Unsupported key
@@ -477,10 +541,12 @@ void loop(void)
                     EEPROM.put(currSensor*EEPROM_BLOCKSIZE+EEPROM_START_ADDR+sizeof(int16_t)*2, g_OffsetSensor[currSensor]);
                 break;
                 case RIGHT_KEY:
-                    g_OffsetSensor[currSensor]+4; //0.25? Steps
+                    //Increment
+                    g_OffsetSensor[currSensor]+=4; //0.25deg Steps
                 break;
                 case LEFT_KEY:
-                    g_OffsetSensor[currSensor]-4; //0.25? Steps
+                    //Decrement
+                    g_OffsetSensor[currSensor]-=4; //0.25deg Steps
                 break;
                 default:
                     //Unsupported key
