@@ -1,31 +1,51 @@
 /*
+    'fresca' project, temperature control for making beer!
+    Copyright (C) 2017  Leonardo M. Capossio
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+/*
 *********************************************************************************************
-** Author: Leonardo Capossio
-** Project: 'fresca'
-** Description: fresca utility functions
-**             
-**             
-**             
-**             
-**             
-**             
-**             
-**             
-**             
-**             
-**             
-**             
-**             
-**             
+Author: Leonardo Capossio
+Project: 'fresca'
+Description: 
+            fresca utility functions
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
 *********************************************************************************************
 */
 
 #include <LiquidCrystal.h>
+#include <DFR_Key.h>
 #include "fresca.h"
 #include "utils.h"
 
 //Delays in milliseconds, even when interrupts are disabled
-void Delay_noInterrupts(uint16_t millis)
+void delay_noInterrupts(uint16_t millis)
 {
     for (uint16_t i=0; i < millis;i++)
     {
@@ -150,6 +170,22 @@ int SensorPrev(int currSensor)
     return currSensor;
 }
 
+//Returns true if select key is pressed
+bool SelectKeyPressed()
+{
+    int tempKey;
+
+    do
+    {
+        tempKey  = keypad.getKey();
+    } while (tempKey == SAMPLE_WAIT);
+    
+    if (tempKey == SELECT_KEY) return true;
+    
+    return false;
+}
+
+////////////////////////////////////////////////////////////////////
 //Measure RAM usage, for debug only, by Bill Earl, from adafruit.com
 int freeRam () 
 {

@@ -1,26 +1,44 @@
 /*
+    'fresca' project, temperature control for making beer!
+    Copyright (C) 2017  Leonardo M. Capossio
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+/*
 *********************************************************************************************
-** Author: Leonardo Capossio
-** Project: 'fresca'
-** Description:
-**             Basic test of peripherals LCD, 7Seg, relay, keypad and Temperature sensor
-**             Connections in Arduino Mega 2560: 
-**             *DS18B20 on pin6
-**             *Relay on pin9
-**             *Analog Keypad on pin A0
-**             *Hitachi HD44780 LCD on pins: 12, 11, 5, 4, 3, 2 (rs, enable, d4, d5, d6, d7)
-**             *TM1637 7-seg on pins: CLK pin8, DIO pin7
-**             
-**             This program will correctly display temperature on the LCD and 7-seg displays
-**             The menu can be navigated by pressing the 'Select' key, which will cycle through:
-**             temperature display, CoolOn threshold setting, CoolOff threshold setting and Offset calibration setting
-**             The CoolOn and CoolOff settings can be modified by pressing the right/left keys,
-**             Which will in turn activate the relay when the temperature falls below CoolOn,
-**             and will turn the relay off when the temperature rises above CoolOff
-**             Stores Cooling thresholds and other data in EEPROM
-**             To know if it there is valid data in the EEPROM (e.g. arduino was used for other projects)
-**             the code will search for a magic number '0x5A' in the EEPROM at address 0, if it doesn't find it
-**             it will write the magic number, and the default values for the thresholds
+Author: Leonardo Capossio
+Project: 'fresca'
+Description:
+            Basic test of peripherals LCD, 7Seg, relay, keypad and Temperature sensor
+            Connections in Arduino Mega 2560: 
+            *DS18B20 on pin6
+            *Relay on pin9
+            *Analog Keypad on pin A0
+            *Hitachi HD44780 LCD on pins: 12, 11, 5, 4, 3, 2 (rs, enable, d4, d5, d6, d7)
+            *TM1637 7-seg on pins: CLK pin8, DIO pin7
+            
+            This program will correctly display temperature on the LCD and 7-seg displays
+            The menu can be navigated by pressing the 'Select' key, which will cycle through:
+            temperature display, CoolOn threshold setting, CoolOff threshold setting and Offset calibration setting
+            The CoolOn and CoolOff settings can be modified by pressing the right/left keys,
+            Which will in turn activate the relay when the temperature falls below CoolOn,
+            and will turn the relay off when the temperature rises above CoolOff
+            Stores Cooling thresholds and other data in EEPROM
+            To know if it there is valid data in the EEPROM (e.g. arduino was used for other projects)
+            the code will search for a magic number '0x5A' in the EEPROM at address 0, if it doesn't find it
+            it will write the magic number, and the default values for the thresholds
 *********************************************************************************************
 */
 
