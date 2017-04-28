@@ -83,165 +83,19 @@ enum state_type {st_show_temp,st_change_CoolOn, st_change_CoolOff, st_calib_sens
 
 void loop(void)
 {
-    int tempKey      = 0;
-    int lastKey      = 0;
-    int currSensor   = 0;
-    state_type state = st_show_temp;
-    char print_buf[MAX_BUF_CHARS];
-    
     lcd.clear();                //Wipe the screen
     interrupts();               // enable all interrupts
+    setTimer1(TIMER_20MS);      // Set timer
     TIMSK1 |= (1 << OCIE1A);    // enable timer compare interrupt
+    
+    Serial.print("***Executing Main Loop");Serial.println();
     
     //MAIN Infinite loop
     while(true)
     {
-        ////////////////////////////////////////
-        //Poll keys
-        do
-        {
-            tempKey  = keypad.getKey();
-        } while (tempKey == SAMPLE_WAIT);
-        
-        if (tempKey != NO_KEY)
-        {
-            lastKey  = tempKey;
-            if (DO_DEBUG)
-            {
-                sprintf(print_buf,"Key press: %d - Analog value: %d\n", lastKey, analogRead(gc_keypad_pins));
-                Serial.print(print_buf);
-            }
-        }
-        
-        ////////////////////////////////////////
-        //Menu state machine
-        switch (state)
-        {
-            case st_show_temp:
-                switch (tempKey)
-                {
-                    case SELECT_KEY:
-                        state = st_change_CoolOn;
-                    break;
-                    
-                    case UP_KEY:
-                        currSensor = SensorNext(currSensor);
-                        lcd.clear(); //Wipe the screen
-                    break;
-                    
-                    case DOWN_KEY:
-                        currSensor = SensorPrev(currSensor);
-                        lcd.clear(); //Wipe the screen
-                    break;
-                    
-                    default:
-                        // state = st_change_CoolOn;
-                    break;
-                }
-                g_showtempLCD=currSensor;
-                //Print first row only
-                snprintf(print_buf, LCD_WIDTH+1, "Temp sensor %d         ",currSensor);
-                lcd.setCursor(0,0);
-                lcd.print(print_buf);
-            break;
-            
-            case st_change_CoolOn:
-                g_showtempLCD=-1; //Dont show temperature for any sensor
-                switch (tempKey)
-                {
-                    case SELECT_KEY:
-                        state = st_change_CoolOff;
-                        //Write value in EEPROM
-                        EEPROM.put(currSensor*EEPROM_BLOCKSIZE+EEPROM_START_ADDR+0, g_CoolOnThresh[currSensor]);
-                    break;
-                    case RIGHT_KEY:
-                        //Increment
-                        g_CoolOnThresh[currSensor]=UpdateCoolOn(g_CoolOnThresh[currSensor],g_CoolOffThresh[currSensor],true); //0.5deg Steps
-                    break;
-                    case LEFT_KEY:
-                        //Decrement
-                        g_CoolOnThresh[currSensor]=UpdateCoolOn(g_CoolOnThresh[currSensor],g_CoolOffThresh[currSensor],false); //0.5deg Steps
-                    break;
-                    default:
-                        //Unsupported key
-                        // state = st_show_temp;
-                    break;
-                }
-                //First row
-                snprintf(print_buf, LCD_WIDTH+1, "CoolOn sensor %d",currSensor);
-                lcd.setCursor(0,0);   //First row
-                lcd.print(print_buf);
-                //Second row
-                PrintTempLCD(g_CoolOnThresh[currSensor],false);
-            break;
-        
-            case st_change_CoolOff:
-                g_showtempLCD=-1; //Dont show temperature for any sensor
-                switch (tempKey)
-                {
-                    case SELECT_KEY:
-                        state = st_calib_sensor;
-                        //Write value in EEPROM
-                        EEPROM.put(currSensor*EEPROM_BLOCKSIZE+EEPROM_START_ADDR+sizeof(int16_t), g_CoolOffThresh[currSensor]);
-                    break;
-                    case RIGHT_KEY:
-                        //Increment
-                        g_CoolOffThresh[currSensor]=UpdateCoolOff(g_CoolOffThresh[currSensor],g_CoolOnThresh[currSensor],true); //0.5deg Steps
-                    break;
-                    case LEFT_KEY:
-                        //Decrement
-                        g_CoolOffThresh[currSensor]=UpdateCoolOff(g_CoolOffThresh[currSensor],g_CoolOnThresh[currSensor],false); //0.5deg Steps
-                    break;
-                    default:
-                        //Unsupported key
-                        // state = st_show_temp;
-                    break;
-                }
-                snprintf(print_buf, LCD_WIDTH+1, "CoolOff sensor %d",currSensor);
-                lcd.setCursor(0,0);   //First row
-                lcd.print(print_buf);
-                //Second row
-                PrintTempLCD(g_CoolOffThresh[currSensor],false);
-            break;
-            
-            case st_calib_sensor: //For offset calibration
-                g_showtempLCD=-1; //Dont show temperature for any sensor
-                switch (tempKey)
-                {
-                    case SELECT_KEY:
-                        state = st_show_temp;
-                        //Write value in EEPROM
-                        EEPROM.put(currSensor*EEPROM_BLOCKSIZE+EEPROM_START_ADDR+sizeof(int16_t)*2, g_OffsetSensor[currSensor]);
-                    break;
-                    case RIGHT_KEY:
-                        //Increment
-                        g_OffsetSensor[currSensor]+=4; //0.25deg Steps
-                    break;
-                    case LEFT_KEY:
-                        //Decrement
-                        g_OffsetSensor[currSensor]-=4; //0.25deg Steps
-                    break;
-                    default:
-                        //Unsupported key
-                        // state = st_show_temp;
-                    break;
-                }
-                snprintf(print_buf, LCD_WIDTH+1, "Off calib sensor %d",currSensor);
-                lcd.setCursor(0,0);   //First row
-                lcd.print(print_buf);
-                //Second row
-                PrintTempLCD(g_OffsetSensor[currSensor],false);
-            break;
-            
-            default:
-                state = st_show_temp;
-            break;
-        }
-        
-        ////////////////////////////////////////
-        if (tempKey != NO_KEY) delay_noInterrupts(500); //Don't change state too quickly
+        read_temp_sensors();
+        delay_noInterrupts(750);
     }
-    
 }
 
 //Setup function run after POR
@@ -373,7 +227,7 @@ void setup(void)
     TCCR1A = 0;
     TCCR1B = 0;
     TCNT1  = 0; //Timer count register
-    OCR1A  = (unsigned) ((16.0e6/256.0)*TEMP_POLL_SEC); // Output compare match register (16MHz/256)*Segs = (16e6/256)*0.8Seg, if using 256 prescaler
+    // OCR1A  = (unsigned) ((16.0e6/256.0)*TEMP_POLL_SEC); // Output compare match register (16MHz/256)*Segs = (16e6/256)*0.8Seg, if using 256 prescaler
     TCCR1B |= (1 << WGM12) | (1 << CS12);               // Clear Timer on Compare (CTC) mode ; 256 prescaler
     Serial.print("Done!");Serial.println();
     //////////////////////////////////////////////////
@@ -382,7 +236,7 @@ void setup(void)
     Serial.print("***Starting main program***");Serial.println();
     Serial.print("***************************");Serial.println();
     
-    delay_noInterrupts(3000);
+    delay_noInterrupts(INIT_DELAY);
 }
 
 //////////////////////////////////////////
@@ -390,9 +244,205 @@ void setup(void)
 //////////////////////////////////////////
 ISR(TIMER1_COMPA_vect)
 {
-    read_temp_sensors();
+    main_menu();
     //Reset count
     TCNT1  = 0; //Timer count register
+}
+
+//Main menu code
+//Poll keys
+inline void main_menu()
+{
+    
+    char print_buf[MAX_BUF_CHARS];
+    int tempKey              = 0;
+    static int  lastKey      = 0;
+    static int  currSensor   = 0;
+    static byte repeat_key   = 0;
+    static state_type state  = st_show_temp;
+    
+    // Serial.print("HERE");Serial.println();
+    
+    ////////////////////////////////////////
+    //Poll keys
+    tempKey  = keypad.getKey();
+    if (tempKey == SAMPLE_WAIT)
+    {
+        //De-bounce wait
+        setTimer1(TIMER_20MS);
+        return;
+    }
+    
+    // if (tempKey == lastKey) delay_noInterrupts(500); //Don't change state too quickly
+    
+    if (tempKey != NO_KEY)
+    {
+        if (DEBUG_KEYS)
+        {
+            sprintf(print_buf,"Key press: %d - Analog value: %d\n", tempKey, analogRead(gc_keypad_pins));
+            Serial.print(print_buf);
+        }
+
+        if (tempKey != lastKey)
+        {
+            //Store pressed key
+            lastKey  = tempKey;
+            setTimer1(TIMER_20MS);
+            repeat_key=0;
+        }
+        else
+        {
+            //If the same key is pressed, don't change state too quickly
+            if (repeat_key == 0)
+            {
+                //First repeat
+                setTimer1(TIMER_500MS);
+                repeat_key=1;
+                return;
+            }
+            else
+            {
+                if (repeat_key < 6)
+                {
+                    //Go normal speed
+                    repeat_key=repeat_key+1;
+                    setTimer1(TIMER_500MS);
+                }
+                else
+                {
+                    //Go faster!
+                    setTimer1(TIMER_250MS);
+                }
+            }
+        }
+    }
+    
+    ////////////////////////////////////////
+    //Menu state machine
+    switch (state)
+    {
+        case st_show_temp:
+            switch (tempKey)
+            {
+                case SELECT_KEY:
+                    state = st_change_CoolOn;
+                break;
+                
+                case UP_KEY:
+                    currSensor = SensorNext(currSensor);
+                    lcd.clear(); //Wipe the screen
+                break;
+                
+                case DOWN_KEY:
+                    currSensor = SensorPrev(currSensor);
+                    lcd.clear(); //Wipe the screen
+                break;
+                
+                default:
+                    // state = st_change_CoolOn;
+                break;
+            }
+            g_showtempLCD=currSensor;
+            //Print first row only
+            snprintf(print_buf, LCD_WIDTH+1, "Temp sensor %d         ",currSensor);
+            lcd.setCursor(0,0);
+            lcd.print(print_buf);
+        break;
+        
+        case st_change_CoolOn:
+            g_showtempLCD=-1; //Dont show temperature for any sensor
+            switch (tempKey)
+            {
+                case SELECT_KEY:
+                    state = st_change_CoolOff;
+                    //Write value in EEPROM
+                    EEPROM.put(currSensor*EEPROM_BLOCKSIZE+EEPROM_START_ADDR+0, g_CoolOnThresh[currSensor]);
+                break;
+                case RIGHT_KEY:
+                    //Increment
+                    g_CoolOnThresh[currSensor]=UpdateCoolOn(g_CoolOnThresh[currSensor],g_CoolOffThresh[currSensor],true); //0.5deg Steps
+                break;
+                case LEFT_KEY:
+                    //Decrement
+                    g_CoolOnThresh[currSensor]=UpdateCoolOn(g_CoolOnThresh[currSensor],g_CoolOffThresh[currSensor],false); //0.5deg Steps
+                break;
+                default:
+                    //Unsupported key
+                    // state = st_show_temp;
+                break;
+            }
+            //First row
+            snprintf(print_buf, LCD_WIDTH+1, "CoolOn sensor %d",currSensor);
+            lcd.setCursor(0,0);   //First row
+            lcd.print(print_buf);
+            //Second row
+            PrintTempLCD(g_CoolOnThresh[currSensor],false);
+        break;
+    
+        case st_change_CoolOff:
+            g_showtempLCD=-1; //Dont show temperature for any sensor
+            switch (tempKey)
+            {
+                case SELECT_KEY:
+                    state = st_calib_sensor;
+                    //Write value in EEPROM
+                    EEPROM.put(currSensor*EEPROM_BLOCKSIZE+EEPROM_START_ADDR+sizeof(int16_t), g_CoolOffThresh[currSensor]);
+                break;
+                case RIGHT_KEY:
+                    //Increment
+                    g_CoolOffThresh[currSensor]=UpdateCoolOff(g_CoolOffThresh[currSensor],g_CoolOnThresh[currSensor],true); //0.5deg Steps
+                break;
+                case LEFT_KEY:
+                    //Decrement
+                    g_CoolOffThresh[currSensor]=UpdateCoolOff(g_CoolOffThresh[currSensor],g_CoolOnThresh[currSensor],false); //0.5deg Steps
+                break;
+                default:
+                    //Unsupported key
+                    // state = st_show_temp;
+                break;
+            }
+            snprintf(print_buf, LCD_WIDTH+1, "CoolOff sensor %d",currSensor);
+            lcd.setCursor(0,0);   //First row
+            lcd.print(print_buf);
+            //Second row
+            PrintTempLCD(g_CoolOffThresh[currSensor],false);
+        break;
+        
+        case st_calib_sensor: //For offset calibration
+            g_showtempLCD=-1; //Dont show temperature for any sensor
+            switch (tempKey)
+            {
+                case SELECT_KEY:
+                    state = st_show_temp;
+                    //Write value in EEPROM
+                    EEPROM.put(currSensor*EEPROM_BLOCKSIZE+EEPROM_START_ADDR+sizeof(int16_t)*2, g_OffsetSensor[currSensor]);
+                break;
+                case RIGHT_KEY:
+                    //Increment
+                    g_OffsetSensor[currSensor]+=4; //0.25deg Steps
+                break;
+                case LEFT_KEY:
+                    //Decrement
+                    g_OffsetSensor[currSensor]-=4; //0.25deg Steps
+                break;
+                default:
+                    //Unsupported key
+                    // state = st_show_temp;
+                break;
+            }
+            snprintf(print_buf, LCD_WIDTH+1, "Off calib sensor %d",currSensor);
+            lcd.setCursor(0,0);   //First row
+            lcd.print(print_buf);
+            //Second row
+            PrintTempLCD(g_OffsetSensor[currSensor],false);
+        break;
+        
+        default:
+            state = st_show_temp;
+        break;
+    }
+    
+    return;
 }
 
 //Read all temperature sensors and update global temperature variables
@@ -408,7 +458,7 @@ inline void read_temp_sensors()
     uint32_t start;
         
     //Print debug stuff
-    if (DO_DEBUG)
+    if (DEBUG_SENSORS)
     {
         start = millis();
         sprintf(print_buf,"Time between calls: %ld\n", start - end_time);
@@ -431,7 +481,7 @@ inline void read_temp_sensors()
             //If sensor is present, read and update temperature
             g_ds1820[sensor]->skip();         //SkipROM command, we only have one sensor per wire
             g_ds1820[sensor]->write(0xBE);    //Read Scratchpad
-            if (DO_DEBUG) { Serial.print("Data sensor ");Serial.print(sensor, DEC);Serial.print(" ="); }
+            if (DEBUG_SENSORS) { Serial.print("Data sensor ");Serial.print(sensor, DEC);Serial.print(" ="); }
             
             byte data_zero_cnt=0;
             for ( i = 0; i < 9; i++)
@@ -439,7 +489,7 @@ inline void read_temp_sensors()
                 // Read 9 bytes
                 data[i] = g_ds1820[sensor]->read();
                 if (data[i] == 0) data_zero_cnt++;
-                if (DO_DEBUG)
+                if (DEBUG_SENSORS)
                 {
                     Serial.print(" 0x");
                     Serial.print(data[i], HEX);
@@ -461,7 +511,7 @@ inline void read_temp_sensors()
                 if (data_zero_cnt==9) crc_err=true; //If all bytes are zero, data is wrong
                 if ( crc_err == false )
                 {
-                    if (DO_DEBUG) {Serial.print(" - CRC OK");Serial.println();}
+                    if (DEBUG_SENSORS) {Serial.print(" - CRC OK");Serial.println();}
                     //Update temperature
                     LowByte  = data[0]; //Temp low byte
                     HighByte = data[1]; //Temp high byte
@@ -477,7 +527,7 @@ inline void read_temp_sensors()
             else
             {
                 //Don't check CRC
-                if (DO_DEBUG) {Serial.print(" - NO CHECK");Serial.println();}
+                if (DEBUG_SENSORS) {Serial.print(" - NO CHECK");Serial.println();}
                 if (data_zero_cnt != 9) //If all bytes are zero, data is wrong
                 {
                     //Update temperature
@@ -490,14 +540,14 @@ inline void read_temp_sensors()
                 {
                     //Most likely no sensor present
                     crc_err=true;
-                    Serial.print("***CAN'T FIND SENSOR ");Serial.print(sensor, DEC);Serial.print(" ***");Serial.println();
+                    if (DEBUG_SENSORS) { Serial.print("***CAN'T FIND SENSOR ");Serial.print(sensor, DEC);Serial.print(" ***");Serial.println();}
                 }
             }
         }
         else
         {
             //If no sensor present (or error), leave the temperature unchanged
-            Serial.print("***CAN'T FIND SENSOR ");Serial.print(sensor, DEC);Serial.print(" ***");Serial.println();
+            if (DEBUG_SENSORS) { Serial.print("***CAN'T FIND SENSOR ");Serial.print(sensor, DEC);Serial.print(" ***");Serial.println();}
         }
 
         //////////////////////////////////////////////////////////////////
@@ -535,7 +585,7 @@ inline void read_temp_sensors()
     }
     
     //Print debug stuff
-    if (DO_DEBUG)
+    if (DEBUG_SENSORS)
     {
         //Print free ram
         sprintf(print_buf,"Free RAM [bytes]: %d\n", freeRam());

@@ -185,6 +185,13 @@ bool SelectKeyPressed()
     return false;
 }
 
+//Set Timer1
+void setTimer1(unsigned value)
+{
+    OCR1A  = value; //Output compare match
+    TCNT1  = 0;     //Reset timer count register
+}
+
 ////////////////////////////////////////////////////////////////////
 //Measure RAM usage, for debug only, by Bill Earl, from adafruit.com
 int freeRam () 

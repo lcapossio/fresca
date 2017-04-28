@@ -51,6 +51,7 @@ Description:
     int  SensorNext(int currSensor);                                //Get next sensor
     int  SensorPrev(int currSensor);                                //Get previous sensor
     bool SelectKeyPressed();                                        //Returns true if select key is pressed
+    void setTimer1(unsigned value);
     int  freeRam();                                                 //Measure RAM usage, for debug only, by Bill Earl, from adafruit.com
     ////////////////////////////////////////
     

@@ -48,7 +48,8 @@ Description:
     #define MAX_NUM_DS1820_SENSORS 8
     #define NUM_DS1820_SENSORS     8                           //One sensor per wire
     
-    #define DO_DEBUG 0              //!=0 serial debug messages are enabled
+    #define DEBUG_SENSORS 1         //!=0 serial debug messages are enabled
+    #define DEBUG_KEYS 0            //!=0 serial debug messages are enabled
     #define USE_CRC  0              //!=0 CRC check is enabled
     #define MAX_BUF_CHARS  64       //Max. characters for print buffer
     #define MAX_TEMP 30*16          //Max Temp for CoolOn
@@ -59,6 +60,11 @@ Description:
     #define LCD_HEIGHT 2            //LCD vertical size
     #define RELAY_ACTIVE 0          //0: Active LOW relays, 1 active HIGH relays
     #define KEYPAD_REFRESH_RATE 20  //Sets the sample rate of the keypad at once every x milliseconds.
+    #define TIMER_20MS          ((16.0e6/256.0)*0.02)  //OCR1A value
+    #define TIMER_100MS         ((16.0e6/256.0)*0.1)   //OCR1A value
+    #define TIMER_250MS         ((16.0e6/256.0)*0.25)  //OCR1A value
+    #define TIMER_500MS         ((16.0e6/256.0)*0.5)   //OCR1A value
+    #define INIT_DELAY          3000                   //Time to delay at startup in milliseconds
     ////////////////////////////////////////
 
     ////////////////////////////////////////
