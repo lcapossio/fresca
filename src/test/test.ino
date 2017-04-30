@@ -58,7 +58,7 @@ Description:
 
 //EEPROM
 #define EEPROM_MAGIC_VAR_ADDR 0             //Byte variable stored in this location indicates EEPROM has been written previously
-#define EEPROM_MAGIC_VAR_VALUE 0x5A
+#define EEPROM_MAGIC_VAR_VALUE 0x5B
 #define EEPROM_START_ADDR 1
 #define EEPROM_BLOCKSIZE  sizeof(int16_t)*3 //Each block contains: CoolOn, CoolOff, Offset
 #define EEPROM_ADDR_INCR  sizeof(int16_t)

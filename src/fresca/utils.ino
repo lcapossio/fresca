@@ -22,19 +22,7 @@ Author: Leonardo Capossio
 Project: 'fresca'
 Description: 
             fresca utility functions
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
+
             
 *********************************************************************************************
 */
@@ -62,13 +50,17 @@ bool PrintTempLCD(int16_t temp, bool show_error)
     bool SignBit;
     int16_t Whole, Fract;
     
+    if (TEMP_FAHRENHEIT)
+    {
+        temp     = celsius2fahrenheit(temp);
+    }
     SignBit  = (temp < 0) ? true : false;      //test most sig bit
     Whole    = SignBit ? -temp : temp;         //Complement if negative
     Fract    = ((Whole&0xF)*100)>>4;           //Leave only the last 2 decimal fractional digits
     Whole    = Whole>>4;                       //Divide by 16 to get the whole part
 
     //Print in the second row
-    snprintf(print_buf, LCD_WIDTH+1, "%c%02u.%02u\xDF C%s", SignBit ? '-':'+', Whole, Fract, show_error ? "  ERR!     " : "          "); //0xDF is *deg* in the LCD char set
+    snprintf(print_buf, LCD_WIDTH+1, "%c%02u.%02u\xDF%c %s", SignBit ? '-':'+', Whole, Fract, (TEMP_FAHRENHEIT==0)?'C':'F', show_error ? "  ERR!     " : "          "); //0xDF is *deg* in the LCD char set
     lcd.setCursor(0,1);
     lcd.print(print_buf);
     
@@ -76,17 +68,18 @@ bool PrintTempLCD(int16_t temp, bool show_error)
     return true;
 }
 
-bool SwitchCooling(byte sensor, bool state)
+//Turn cooling on/off
+inline bool SwitchCooling(byte sensor, bool state)
 {
     if (state)
     {
         //Turn on cooling
-        digitalWrite(g_CoolSwitch[sensor], HIGH);
+        digitalWrite(g_CoolSwitch[sensor], (RELAY_ACTIVE!=0) ? HIGH : LOW);
     }
     else
     {
         //Turn off cooling
-        digitalWrite(g_CoolSwitch[sensor], LOW);
+        digitalWrite(g_CoolSwitch[sensor], (RELAY_ACTIVE!=0) ? LOW : HIGH);
     }
     
     //Always successful
@@ -96,16 +89,16 @@ bool SwitchCooling(byte sensor, bool state)
 
 int UpdateCoolOn(int currVal, int CoolOffVal, bool inc_dec)
 {
-    //0.5deg Steps
+    //Step
     if (inc_dec)
     {
         //Increment
-        currVal+=DEG_0_5;
+        currVal+=THRESHOLD_STEP;
     }
     else
     {
         //Decrement
-        currVal-=DEG_0_5;
+        currVal-=THRESHOLD_STEP;
     }
     
     //Check limits
@@ -113,9 +106,9 @@ int UpdateCoolOn(int currVal, int CoolOffVal, bool inc_dec)
     {
         currVal = MAX_TEMP;
     }
-    else if (currVal < CoolOffVal+DEG_0_5)
+    else if (currVal < CoolOffVal+THRESHOLD_STEP)
     {
-        currVal = CoolOffVal+DEG_0_5;
+        currVal = CoolOffVal+THRESHOLD_STEP;
     }
     
     return currVal;
@@ -123,16 +116,16 @@ int UpdateCoolOn(int currVal, int CoolOffVal, bool inc_dec)
 
 int UpdateCoolOff(int currVal, int CoolOnVal, bool inc_dec)
 {
-    //0.5deg Steps
+    //Step
     if (inc_dec)
     {
         //Increment
-        currVal+=DEG_0_5;
+        currVal+=THRESHOLD_STEP;
     }
     else
     {
         //Decrement
-        currVal-=DEG_0_5;
+        currVal-=THRESHOLD_STEP;
     }
     
     //Check limits
@@ -140,15 +133,15 @@ int UpdateCoolOff(int currVal, int CoolOnVal, bool inc_dec)
     {
         currVal = MIN_TEMP;
     }
-    else if (currVal > CoolOnVal-DEG_0_5)
+    else if (currVal > CoolOnVal-THRESHOLD_STEP)
     {
-        currVal = CoolOnVal-DEG_0_5;
+        currVal = CoolOnVal-THRESHOLD_STEP;
     }
     
     return currVal;
 }
 
-int SensorNext(int currSensor)
+inline byte SensorNext(byte currSensor)
 {
     currSensor += 1;
     if (currSensor > NUM_DS1820_SENSORS-1)
@@ -159,10 +152,10 @@ int SensorNext(int currSensor)
     return currSensor;
 }
 
-int SensorPrev(int currSensor)
+inline byte SensorPrev(byte currSensor)
 {
     currSensor -= 1;
-    if (currSensor < 0)
+    if (currSensor > NUM_DS1820_SENSORS-1)
     {
         currSensor = NUM_DS1820_SENSORS-1;
     }
@@ -185,11 +178,49 @@ bool SelectKeyPressed()
     return false;
 }
 
-//Set Timer1
-void setTimer1(unsigned value)
+//Write user bytes into DS1820 and copy it to the EEPROM
+//Offset will be stored in TH and TL register of DS1820
+void ds1820_WriteUserBytes(OneWire *sensor, byte config_reg, int16_t offset)
 {
-    OCR1A  = value; //Output compare match
-    TCNT1  = 0;     //Reset timer count register
+    byte TH, TL;
+    
+    //Mask offset into separate bytes
+    TH = (offset >> 8) & 0xFF;
+    TL = offset & 0xFF;
+    
+    //
+    sensor->reset();
+    sensor->skip();         //SkipROM command, we only have one sensor per wire
+    sensor->write(0x4E);    //Write Scratchpad
+    
+    //Now write 3 bytes in this order TH, TL and configuration register
+    sensor->write(TH);          //Write byte
+    sensor->write(TL);          //Write byte
+    sensor->write(config_reg);  //Write byte
+    
+    //Now transfer the scratchpad contents to EEPROM
+    sensor->reset();
+    sensor->skip();         //SkipROM command, we only have one sensor per wire
+    sensor->write(0x48);    //Copy Scratchpad
+
+    return;
+}
+
+//Celsius comes in Q11.4
+int16_t celsius2fahrenheit(int16_t celsius)
+{
+    int16_t fahrenheit;
+    
+    //(9/5*celsius) + 32
+    //or (1.8*celsius) + 32
+    fahrenheit = (TEMPFLOAT2FIX(1.8,TEMP_SCALE) * celsius) >> (TEMP_FRAC_BITS);
+    fahrenheit += TEMPFLOAT2FIX(32.0,TEMP_SCALE);
+    
+    // //Debug
+    // Serial.print("Celsius: ");Serial.print(celsius, DEC);Serial.print(" ***");Serial.println();
+    // Serial.print("Fahrenheit: ");Serial.print(fahrenheit, DEC);Serial.print(" ***");Serial.println();
+    
+    return fahrenheit;
 }
 
 ////////////////////////////////////////////////////////////////////

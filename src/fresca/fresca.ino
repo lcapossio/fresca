@@ -22,20 +22,24 @@ Author: Leonardo Capossio
 Project: 'fresca'
 Description:
 
-This program will correctly display temperature on the LCD and 7-seg displays for up to 8 sensors
-It will also monitor all the sensors temperature and activate cooling according to user settings
-Pinout can be lookedup/changed in this file where it says " PINOUT_LINE "
-The menu can be navigated by pressing the 'Select' key, which will cycle through:
-temperature display, CoolOn threshold setting, CoolOff threshold setting and Offset calibration setting
-The CoolOn and CoolOff settings can be modified by pressing the right/left keys,
-Which will in turn activate the relay when the temperature falls below CoolOn,
-and will turn the relay off when the temperature rises above CoolOff
-Current sensor selected can be changed in main menu by pressing up/down keys
-Stores Cooling thresholds and other data in EEPROM
-To know if it there is valid data in the EEPROM (e.g. arduino was used for other projects)
-the code will search for a magic number '0x5A' in the EEPROM at address 0, if it doesn't find it
-it will write the magic number, and the default values for the thresholds
-To recover the EEPROM default state, keep SELECT key pressed at boot up until the main menu is reached
+*This program will correctly display temperature on the LCD and 7-seg displays for up to 8 sensors
+*It will also monitor all the sensors temperature and activate cooling according to user settings
+*Pinout can be lookedup/changed in this file where it says " PINOUT_LINE "
+*The menu can be navigated by pressing the 'Select' key, which will cycle through:
+ temperature display, CoolOn threshold setting, CoolOff threshold setting and Offset calibration setting
+*The CoolOn and CoolOff settings can be modified by pressing the right/left keys,
+ which will in turn activate the relay when the temperature falls below CoolOn,
+ and will turn the relay off when the temperature rises above CoolOff
+*Current sensor selected can be changed in main menu by pressing up/down keys
+*Stores Cooling thresholds and other data in EEPROM
+*To know if there is valid data in the EEPROM (e.g. arduino was used for other projects)
+ the code will search for a magic number '0x5A' in the EEPROM at address 0, if it doesn't find it
+ it will write the magic number, and the default values for the thresholds
+*To recover the EEPROM default state, keep SELECT key pressed at boot up until the main menu is reached
+*Temperature display is defaulted to degrees celsius, but can be changed to fahrenheit with TEMP_FAHRENHEIT
+ Celsius temperature display on 4-digit 7-segment LCD is two leftmost digits are whole part and two rightmost are fractional part
+ Fahrenheit temperature display on 4-digit 7-segment LCD is three leftmost digits are whole part and the rightmost is fractional part
+ All temperatures are represented internally with 16 bits signed 'Q11.4' fixed point format (celsius)
 
 *********************************************************************************************
 */
@@ -61,7 +65,7 @@ const byte gc_keypad_pins                             = 0;                      
 ////////////////////////////////////////
 //Global variables
 byte     g_showtempLCD = 0; //Set to the Sensor number you want to display on the LCD (0: sensor0)
-int16_t  g_TempReading[NUM_DS1820_SENSORS]   = {0};
+int16_t  g_TempReading[NUM_DS1820_SENSORS]   = {0}; //Last successful temperature reading
 int16_t  g_CoolOnThresh[NUM_DS1820_SENSORS]  = {24*16,24*16,24*16,24*16,24*16,24*16,24*16,24*16};
 int16_t  g_CoolOffThresh[NUM_DS1820_SENSORS] = {25*16,25*16,25*16,25*16,25*16,25*16,25*16,25*16};
 int16_t  g_OffsetSensor[NUM_DS1820_SENSORS]  = {0};
@@ -85,16 +89,16 @@ void loop(void)
 {
     lcd.clear();                //Wipe the screen
     interrupts();               // enable all interrupts
-    setTimer1(TIMER_20MS);      // Set timer
+    SET_TIMER1(TIMER_20MS);      // Set timer
     TIMSK1 |= (1 << OCIE1A);    // enable timer compare interrupt
     
-    Serial.print("***Executing Main Loop");Serial.println();
+    Serial.print("***Executing Main Loop...");Serial.println();
     
     //MAIN Infinite loop
     while(true)
     {
         read_temp_sensors();
-        delay_noInterrupts(750);
+        delay_noInterrupts(750); //750ms conversion time for 12 bits
     }
 }
 
@@ -110,7 +114,7 @@ void setup(void)
     //Initialize Serial
     Serial.begin(9600);
     Serial.print("---------------");Serial.println();
-    Serial.print("'fresca' test");Serial.println();
+    Serial.print("'fresca' project");Serial.println();
     Serial.print("Please wait ...");Serial.println();
     Serial.print("---------------");Serial.println();
     //////////////////////////////////////////////////
@@ -120,7 +124,7 @@ void setup(void)
     Serial.print("Initializing LCD...");
     lcd.begin(LCD_WIDTH, LCD_HEIGHT,1);
     lcd.setCursor(0,0);
-    lcd.print("'fresca' test");
+    lcd.print("'fresca' project");
     lcd.setCursor(0,1);
     lcd.print("Please wait ...");
     Serial.print("Done!");Serial.println();
@@ -182,7 +186,7 @@ void setup(void)
     for (i=0;i<NUM_DS1820_SENSORS;i++)
     {
         pinMode(g_CoolSwitch[i], OUTPUT);
-        digitalWrite(g_CoolSwitch[i], (RELAY_ACTIVE==1) ? HIGH : LOW);
+        digitalWrite(g_CoolSwitch[i], (RELAY_ACTIVE!=0) ? LOW : HIGH );
     }
     Serial.print("Done!");Serial.println();
     //////////////////////////////////////////////////
@@ -204,7 +208,6 @@ void setup(void)
         {
             EEPROM.put(i*EEPROM_BLOCKSIZE+EEPROM_START_ADDR+0, g_CoolOnThresh[i]);
             EEPROM.put(i*EEPROM_BLOCKSIZE+EEPROM_START_ADDR+sizeof(int16_t), g_CoolOffThresh[i]);
-            EEPROM.put(i*EEPROM_BLOCKSIZE+EEPROM_START_ADDR+sizeof(int16_t)*2, g_OffsetSensor[i]);
         }
     }
     else
@@ -215,7 +218,6 @@ void setup(void)
         {
             EEPROM.get(i*EEPROM_BLOCKSIZE+EEPROM_START_ADDR+0, g_CoolOnThresh[i]);
             EEPROM.get(i*EEPROM_BLOCKSIZE+EEPROM_START_ADDR+sizeof(int16_t), g_CoolOffThresh[i]);
-            EEPROM.get(i*EEPROM_BLOCKSIZE+EEPROM_START_ADDR+sizeof(int16_t)*2, g_OffsetSensor[i]);
         }
     }
     Serial.print("Done!");Serial.println();
@@ -250,18 +252,17 @@ ISR(TIMER1_COMPA_vect)
 }
 
 //Main menu code
-//Poll keys
+//Poll keys, main state machine
 inline void main_menu()
 {
     
     char print_buf[MAX_BUF_CHARS];
     int tempKey              = 0;
     static int  lastKey      = 0;
-    static int  currSensor   = 0;
+    static byte currSensor   = 0;
     static byte repeat_key   = 0;
     static state_type state  = st_show_temp;
-    
-    // Serial.print("HERE");Serial.println();
+    static int16_t TempOffsetSensor;
     
     ////////////////////////////////////////
     //Poll keys
@@ -269,12 +270,10 @@ inline void main_menu()
     if (tempKey == SAMPLE_WAIT)
     {
         //De-bounce wait
-        setTimer1(TIMER_20MS);
+        SET_TIMER1(TIMER_20MS);
         return;
     }
-    
-    // if (tempKey == lastKey) delay_noInterrupts(500); //Don't change state too quickly
-    
+
     if (tempKey != NO_KEY)
     {
         if (DEBUG_KEYS)
@@ -285,9 +284,9 @@ inline void main_menu()
 
         if (tempKey != lastKey)
         {
-            //Store pressed key
+            //Store newly pressed key
             lastKey  = tempKey;
-            setTimer1(TIMER_20MS);
+            SET_TIMER1(TIMER_20MS); //Wait 20ms before resampling
             repeat_key=0;
         }
         else
@@ -296,7 +295,7 @@ inline void main_menu()
             if (repeat_key == 0)
             {
                 //First repeat
-                setTimer1(TIMER_500MS);
+                SET_TIMER1(TIMER_500MS);
                 repeat_key=1;
                 return;
             }
@@ -304,17 +303,23 @@ inline void main_menu()
             {
                 if (repeat_key < 6)
                 {
-                    //Go normal speed
+                    //Go normal repeat speed
                     repeat_key=repeat_key+1;
-                    setTimer1(TIMER_500MS);
+                    SET_TIMER1(TIMER_500MS);
                 }
                 else
                 {
                     //Go faster!
-                    setTimer1(TIMER_250MS);
+                    SET_TIMER1(TIMER_250MS);
                 }
             }
         }
+    }
+    else
+    {
+        //No key
+        repeat_key = 0;
+        lastKey    = tempKey;
     }
     
     ////////////////////////////////////////
@@ -331,11 +336,13 @@ inline void main_menu()
                 case UP_KEY:
                     currSensor = SensorNext(currSensor);
                     lcd.clear(); //Wipe the screen
+                    PrintTempLCD(g_TempReading[currSensor],false);
                 break;
                 
                 case DOWN_KEY:
                     currSensor = SensorPrev(currSensor);
                     lcd.clear(); //Wipe the screen
+                    PrintTempLCD(g_TempReading[currSensor],false);
                 break;
                 
                 default:
@@ -384,6 +391,8 @@ inline void main_menu()
             switch (tempKey)
             {
                 case SELECT_KEY:
+                    //Load offset calibration value
+                    TempOffsetSensor = g_OffsetSensor[currSensor];
                     state = st_calib_sensor;
                     //Write value in EEPROM
                     EEPROM.put(currSensor*EEPROM_BLOCKSIZE+EEPROM_START_ADDR+sizeof(int16_t), g_CoolOffThresh[currSensor]);
@@ -413,28 +422,40 @@ inline void main_menu()
             switch (tempKey)
             {
                 case SELECT_KEY:
+                    //Go back to Main screen
+                    lcd.clear(); //Wipe the screen
                     state = st_show_temp;
-                    //Write value in EEPROM
-                    EEPROM.put(currSensor*EEPROM_BLOCKSIZE+EEPROM_START_ADDR+sizeof(int16_t)*2, g_OffsetSensor[currSensor]);
+                    //Write value in DS1820 scratchpad
+                    ds1820_WriteUserBytes(g_ds1820[currSensor],DS1820_CONFIG_REG,TempOffsetSensor);
                 break;
                 case RIGHT_KEY:
                     //Increment
-                    g_OffsetSensor[currSensor]+=4; //0.25deg Steps
+                    TempOffsetSensor+=OFFSET_STEP; //Steps
                 break;
                 case LEFT_KEY:
                     //Decrement
-                    g_OffsetSensor[currSensor]-=4; //0.25deg Steps
+                    TempOffsetSensor-=OFFSET_STEP; //Steps
                 break;
                 default:
                     //Unsupported key
                     // state = st_show_temp;
                 break;
             }
+            //Check limits
+            if (TempOffsetSensor > (int16_t) MAX_OFF_TEMP)
+            {
+                TempOffsetSensor = MAX_OFF_TEMP;
+            }
+            else if (TempOffsetSensor < -(int16_t) MIN_OFF_TEMP)
+            {
+                TempOffsetSensor = -(int16_t)MIN_OFF_TEMP;
+            }
+            //Print on LCD
             snprintf(print_buf, LCD_WIDTH+1, "Off calib sensor %d",currSensor);
             lcd.setCursor(0,0);   //First row
             lcd.print(print_buf);
             //Second row
-            PrintTempLCD(g_OffsetSensor[currSensor],false);
+            PrintTempLCD(TempOffsetSensor,false);
         break;
         
         default:
@@ -458,7 +479,7 @@ inline void read_temp_sensors()
     uint32_t start;
         
     //Print debug stuff
-    if (DEBUG_SENSORS)
+    if (DEBUG_PERF)
     {
         start = millis();
         sprintf(print_buf,"Time between calls: %ld\n", start - end_time);
@@ -478,6 +499,7 @@ inline void read_temp_sensors()
         
         if (present)
         {
+            ///////////////////////////////////////////////////
             //If sensor is present, read and update temperature
             g_ds1820[sensor]->skip();         //SkipROM command, we only have one sensor per wire
             g_ds1820[sensor]->write(0xBE);    //Read Scratchpad
@@ -496,19 +518,21 @@ inline void read_temp_sensors()
                 }
             }
 
+            ////////////////////////////////////////////
             //Immediately restart temperature conversion
             g_ds1820[sensor]->reset();
             // g_ds1820[sensor]->select(addr[sensor]); //Select a particular sensor
             g_ds1820[sensor]->skip();         // SkipROM command, we only have one sensor per wire
             g_ds1820[sensor]->write(0x44,0);  // Command 0x44, start temperature conversion
-
-            crc_err=false;
+            
+            //////////////
             //Process data
+            crc_err=false;
             if (USE_CRC)
             {
                 //Check CRC
-                crc_err = (OneWire::crc8(data, 9)==0) ? false : true; //CRC equal 0 over the whole scratchpad memory means CRC is correct
-                if (data_zero_cnt==9) crc_err=true; //If all bytes are zero, data is wrong
+                crc_err = (OneWire::crc8(data, 9)==0) ? false : true; //CRC equal 0 over the whole scratchpad memory means CRC is correct, otherwise CRC failed
+                if (data_zero_cnt==9) crc_err=true; //If all bytes are zero, data is wrong, probably no sensor present
                 if ( crc_err == false )
                 {
                     if (DEBUG_SENSORS) {Serial.print(" - CRC OK");Serial.println();}
@@ -516,25 +540,51 @@ inline void read_temp_sensors()
                     LowByte  = data[0]; //Temp low byte
                     HighByte = data[1]; //Temp high byte
                     g_TempReading[sensor] = (HighByte << 8) + LowByte;
-                    g_TempReading[sensor] += g_OffsetSensor[sensor]; //Remove offset (if calibrated)
+                    //Update Offset calibration from DS1820 scratchpad
+                    HighByte = data[2]; //Temp high byte
+                    LowByte  = data[3]; //Temp low byte
+                    g_OffsetSensor[sensor] = (HighByte << 8) + LowByte;
+                    if ( (g_OffsetSensor[sensor] > (int16_t) MAX_OFF_TEMP) || (g_OffsetSensor[sensor] < -(int16_t) MIN_OFF_TEMP) )
+                    {
+                        //Invalid value reset to 0
+                        g_OffsetSensor[sensor] = 0;
+                    }
+                    else
+                    {
+                        //Apply offset (if calibrated)
+                        g_TempReading[sensor] += g_OffsetSensor[sensor];
+                    }
                 }
                 else
                 {
                     //There was a CRC error, don't update temperature
-                    Serial.print(" - CRC ERROR ");Serial.println();
+                    if (!DEBUG_SENSORS){Serial.print("Data sensor ");Serial.print(sensor, DEC);}Serial.print(" - CRC ERROR ");Serial.println();
                 }
             }
             else
             {
                 //Don't check CRC
                 if (DEBUG_SENSORS) {Serial.print(" - NO CHECK");Serial.println();}
-                if (data_zero_cnt != 9) //If all bytes are zero, data is wrong
+                if (data_zero_cnt != 9) //If all bytes are zero, data is wrong, probably no sensor present
                 {
                     //Update temperature
                     LowByte  = data[0]; //Temp low byte
                     HighByte = data[1]; //Temp high byte
                     g_TempReading[sensor] = (HighByte << 8) + LowByte;
-                    g_TempReading[sensor] += g_OffsetSensor[sensor]; //Remove offset (if calibrated)
+                    //Update Offset calibration from DS1820 scratchpad
+                    HighByte = data[2]; //Temp high byte
+                    LowByte  = data[3]; //Temp low byte
+                    g_OffsetSensor[sensor] = (HighByte << 8) + LowByte;
+                    if ( (g_OffsetSensor[sensor] > (int16_t) MAX_OFF_TEMP) || (g_OffsetSensor[sensor] < -(int16_t) MIN_OFF_TEMP) )
+                    {
+                        //Invalid value reset to 0
+                        g_OffsetSensor[sensor] = 0;
+                    }
+                    else
+                    {
+                        //Apply offset (if calibrated)
+                        g_TempReading[sensor] += g_OffsetSensor[sensor];
+                    }
                 }
                 else
                 {
@@ -553,13 +603,15 @@ inline void read_temp_sensors()
         //////////////////////////////////////////////////////////////////
         //Control Cooling
         //////////////////////////////////////////////////////////////////
-        if (g_TempReading[sensor] <= g_CoolOnThresh[sensor])
+        if (g_TempReading[sensor] >= g_CoolOnThresh[sensor])
         {
+            //If temperature rises above CoolOnThreshold
             //Turn on cooling
             SwitchCooling(sensor, true);
         }
-        else if (g_TempReading[sensor] >= g_CoolOffThresh[sensor])
+        else if (g_TempReading[sensor] <= g_CoolOffThresh[sensor])
         {
+            //If temperature decreases below CoolOffThreshold
             //Turn off cooling
             SwitchCooling(sensor, false);
         }
@@ -570,13 +622,29 @@ inline void read_temp_sensors()
 
         bool SignBit;
         
+        ///////////
         //7-segment
         int32_t DispTemp32;
         SignBit    = (g_TempReading[sensor] < 0) ? true : false;                     //test most sig bit
-        DispTemp32 =( ((int32_t)g_TempReading[sensor]) * 100 ) >> 4;                 //Promote to 32-bits for the 7-seg display
-        DispTemp32 = SignBit ? -DispTemp32 : DispTemp32;                             //Complement if negative
-        g_disp7seg[sensor]->showNumberDecEx((unsigned)DispTemp32, 0x10, true, 4, 0); //Format to display in 4 7-segment chars (multiply by 100, then remove fractional bits)
+        if (TEMP_FAHRENHEIT==0)
+        {
+            //Format to display in 4 7-segment chars (multiply by 100, then remove fractional bits)
+            //Celsius
+            DispTemp32 = ( ( (int32_t) (g_TempReading[sensor]) ) * 100 ) >> 4;                 //Promote to 32-bits for the 7-seg display
+            DispTemp32 = SignBit ? -DispTemp32 : DispTemp32;                             //Complement if negative
+            g_disp7seg[sensor]->showNumberDecEx((unsigned)DispTemp32, 0xFF, true, 4, 0);
+        }
+        else
+        {
+            //Format to display in 4 7-segment chars (multiply by 10, then remove fractional bits)
+            //Fahrenheit
+            DispTemp32 = ( ( (int32_t) (celsius2fahrenheit(g_TempReading[sensor])) ) * 10 ) >> 4;                 //Promote to 32-bits for the 7-seg display
+            DispTemp32 = SignBit ? -DispTemp32 : DispTemp32;                             //Complement if negative
+            g_disp7seg[sensor]->showNumberDecEx((unsigned)DispTemp32, 0x00, true, 4, 0);
+        }
 
+        
+        //////////////
         //LCD printing
         if (g_showtempLCD == sensor)
         {
@@ -585,7 +653,7 @@ inline void read_temp_sensors()
     }
     
     //Print debug stuff
-    if (DEBUG_SENSORS)
+    if (DEBUG_PERF)
     {
         //Print free ram
         sprintf(print_buf,"Free RAM [bytes]: %d\n", freeRam());
