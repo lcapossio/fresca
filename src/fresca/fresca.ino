@@ -49,22 +49,23 @@ Description:
 #include <OneWire.h>
 #include <DFR_Key.h>
 #include <EEPROM.h>
+#include "ds1820.h"
 #include "utils.h"
 #include "fresca.h"
 
 ////////////////////////////////////////
 // ****** DEFINE PINOUT HERE ****** PINOUT_LINE
-const byte gc_7seg_dio_pins[MAX_NUM_DS1820_SENSORS]   = {7,14,15,16,17,18,19,20};   //All TM1637 DIO are specified here
-const byte gc_7seg_clk_pins                           = {8};                        //One clock for all TM1637 displays
-const byte g_CoolSwitch[MAX_NUM_DS1820_SENSORS]       = {9,21,22,23,24,25,26,27};   //Contains pin number for relay index
-const byte gc_ds1820_pins[MAX_NUM_DS1820_SENSORS]     = {6,28,29,30,31,32,33,34};   //DS18B20 Digital temperature sensor
-const byte gc_lcd_pins[6]                             = {12, 11, 5, 4, 3, 2};       //LCD 16x2 based on the Hitachi HD44780 controller (rs, enable, d4, d5, d6, d7)
-const byte gc_keypad_pins                             = 0;                          //Analog Keypad on the LCD PCB (has to be an analog pin)
+const uint8_t gc_7seg_dio_pins[MAX_NUM_DS1820_SENSORS]   = {7,14,15,16,17,18,19,20};   //All TM1637 DIO are specified here
+const uint8_t gc_7seg_clk_pins                           = {8};                        //One clock for all TM1637 displays
+const uint8_t g_CoolSwitch[MAX_NUM_DS1820_SENSORS]       = {9,21,22,23,24,25,26,27};   //Contains pin number for relay index
+const uint8_t gc_ds1820_pins[MAX_NUM_DS1820_SENSORS]     = {6,28,29,30,31,32,33,34};   //DS18B20 Digital temperature sensor
+const uint8_t gc_lcd_pins[6]                             = {12, 11, 5, 4, 3, 2};       //LCD 16x2 based on the Hitachi HD44780 controller (rs, enable, d4, d5, d6, d7)
+const uint8_t gc_keypad_pins                             = 0;                          //Analog Keypad on the LCD PCB (has to be an analog pin)
 ////////////////////////////////////////
 
 ////////////////////////////////////////
 //Global variables
-byte     g_showtempLCD = 0; //Set to the Sensor number you want to display on the LCD (0: sensor0)
+uint8_t     g_showtempLCD = 0; //Set to the Sensor number you want to display on the LCD (0: sensor0)
 int16_t  g_TempReading[NUM_DS1820_SENSORS]   = {0}; //Last successful temperature reading
 int16_t  g_CoolOnThresh[NUM_DS1820_SENSORS]  = {24*16,24*16,24*16,24*16,24*16,24*16,24*16,24*16};
 int16_t  g_CoolOffThresh[NUM_DS1820_SENSORS] = {25*16,25*16,25*16,25*16,25*16,25*16,25*16,25*16};
@@ -105,7 +106,7 @@ void loop(void)
 //Setup function run after POR
 void setup(void)
 {
-    byte i;
+    uint8_t i;
     
     // Disable all interrupts
     noInterrupts();
@@ -201,7 +202,7 @@ void setup(void)
         //We haven't written this EEPROM before, or user is indicating a reset of the EEPROM
         //Store new default values
         Serial.print("***NOT found magic number, writing default values ...");
-        EEPROM.put(EEPROM_MAGIC_VAR_ADDR, (byte) EEPROM_MAGIC_VAR_VALUE); //Write magic number
+        EEPROM.put(EEPROM_MAGIC_VAR_ADDR, (uint8_t) EEPROM_MAGIC_VAR_VALUE); //Write magic number
         
         //Write default values
         for (i=0; i<NUM_DS1820_SENSORS; i++)
@@ -259,8 +260,8 @@ inline void main_menu()
     char print_buf[MAX_BUF_CHARS];
     int tempKey              = 0;
     static int  lastKey      = 0;
-    static byte currSensor   = 0;
-    static byte repeat_key   = 0;
+    static uint8_t currSensor   = 0;
+    static uint8_t repeat_key   = 0;
     static state_type state  = st_show_temp;
     static int16_t TempOffsetSensor;
     
@@ -469,9 +470,9 @@ inline void main_menu()
 //Read all temperature sensors and update global temperature variables
 inline void read_temp_sensors()
 {
-    byte i, sensor;
-    byte present = 0;
-    byte data[9];
+    uint8_t i, sensor;
+    uint8_t present = 0;
+    uint8_t data[9];
     bool crc_err;
     char print_buf[MAX_BUF_CHARS];
     int16_t HighByte, LowByte;
@@ -505,7 +506,7 @@ inline void read_temp_sensors()
             g_ds1820[sensor]->write(0xBE);    //Read Scratchpad
             if (DEBUG_SENSORS) { Serial.print("Data sensor ");Serial.print(sensor, DEC);Serial.print(" ="); }
             
-            byte data_zero_cnt=0;
+            uint8_t data_zero_cnt=0;
             for ( i = 0; i < 9; i++)
             {
                 // Read 9 bytes

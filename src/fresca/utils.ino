@@ -69,7 +69,7 @@ bool PrintTempLCD(int16_t temp, bool show_error)
 }
 
 //Turn cooling on/off
-inline bool SwitchCooling(byte sensor, bool state)
+inline bool SwitchCooling(uint8_t sensor, bool state)
 {
     if (state)
     {
@@ -141,7 +141,7 @@ int UpdateCoolOff(int currVal, int CoolOnVal, bool inc_dec)
     return currVal;
 }
 
-inline byte SensorNext(byte currSensor)
+inline uint8_t SensorNext(uint8_t currSensor)
 {
     currSensor += 1;
     if (currSensor > NUM_DS1820_SENSORS-1)
@@ -152,7 +152,7 @@ inline byte SensorNext(byte currSensor)
     return currSensor;
 }
 
-inline byte SensorPrev(byte currSensor)
+inline uint8_t SensorPrev(uint8_t currSensor)
 {
     currSensor -= 1;
     if (currSensor > NUM_DS1820_SENSORS-1)
@@ -180,9 +180,9 @@ bool SelectKeyPressed()
 
 //Write user bytes into DS1820 and copy it to the EEPROM
 //Offset will be stored in TH and TL register of DS1820
-void ds1820_WriteUserBytes(OneWire *sensor, byte config_reg, int16_t offset)
+void ds1820_WriteUserBytes(OneWire *sensor, uint8_t config_reg, int16_t offset)
 {
-    byte TH, TL;
+    uint8_t TH, TL;
     
     //Mask offset into separate bytes
     TH = (offset >> 8) & 0xFF;

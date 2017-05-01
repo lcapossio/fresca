@@ -104,7 +104,7 @@ Description:
     
     ////////////////////////////////////////
     //Global variables
-    extern byte     g_showtempLCD;                          //Set to the Sensor number you want to display on the LCD (0: sensor0)
+    extern uint8_t     g_showtempLCD;                       //Set to the Sensor number you want to display on the LCD (0: sensor0)
     extern int16_t  g_TempReading[NUM_DS1820_SENSORS];      //TempReading for every sensor
     extern int16_t  g_CoolOnThresh[NUM_DS1820_SENSORS];     //CoolOnThreshold for every sensor
     extern int16_t  g_CoolOffThresh[NUM_DS1820_SENSORS];    //CoolOffThreshold for every sensor
@@ -113,7 +113,7 @@ Description:
     //Objects (Peripherals)
     extern TM1637Display *g_disp7seg[NUM_DS1820_SENSORS];   //7segment displays (TM1637)
     extern OneWire *g_ds1820[NUM_DS1820_SENSORS];           //DS18B20 Digital temperature sensor
-    extern const byte g_CoolSwitch[NUM_DS1820_SENSORS];     //Cooling actuators (Relays)
+    extern const uint8_t g_CoolSwitch[NUM_DS1820_SENSORS];  //Cooling actuators (Relays)
     extern LiquidCrystal lcd;                               //LCD 16x2 based on the Hitachi HD44780 controller
     extern DFR_Key keypad;                                  //Analog Keypad on the LCD
     ////////////////////////////////////////
