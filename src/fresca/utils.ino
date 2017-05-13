@@ -29,7 +29,6 @@ Description:
 
 #include <LiquidCrystal.h>
 #include <DFR_Key.h>
-#include "fresca.h"
 #include "utils.h"
 
 //Delays in milliseconds, even when interrupts are disabled
@@ -43,7 +42,7 @@ void delay_noInterrupts(uint16_t millis)
 }
 
 //Prints temperature in the second row of the LCD
-bool PrintTempLCD(int16_t temp, bool show_error)
+bool PrintTempLCD(int16_t temp, bool show_error, LiquidCrystal * lcd)
 {
     // Separate off the whole and fractional portions, since sprintf doesn't support printing floats!!!
     char print_buf[MAX_BUF_CHARS];
@@ -60,26 +59,27 @@ bool PrintTempLCD(int16_t temp, bool show_error)
     Whole    = Whole>>4;                       //Divide by 16 to get the whole part
 
     //Print in the second row
-    snprintf(print_buf, LCD_WIDTH+1, "%c%02u.%02u\xDF%c %s", SignBit ? '-':'+', Whole, Fract, (TEMP_FAHRENHEIT==0)?'C':'F', show_error ? "  ERR!     " : "          "); //0xDF is *deg* in the LCD char set
-    lcd.setCursor(0,1);
-    lcd.print(print_buf);
+    //0xDF is *deg* in the LCD char set
+    snprintf(print_buf, LCD_WIDTH+1, "%c%02u.%02u\xDF%c %s", SignBit ? '-':'+', Whole, Fract, (TEMP_FAHRENHEIT==0)?'C':'F', show_error ? "  ERR!     " : "          ");
+    lcd->setCursor(0,1);
+    lcd->print(print_buf);
     
     //Always successful
     return true;
 }
 
 //Turn cooling on/off
-inline bool SwitchCooling(uint8_t sensor, bool state)
+inline bool SwitchCooling(uint8_t digPin, bool state)
 {
     if (state)
     {
         //Turn on cooling
-        digitalWrite(g_CoolSwitch[sensor], (RELAY_ACTIVE!=0) ? HIGH : LOW);
+        digitalWrite(digPin, (RELAY_ACTIVE!=0) ? HIGH : LOW);
     }
     else
     {
         //Turn off cooling
-        digitalWrite(g_CoolSwitch[sensor], (RELAY_ACTIVE!=0) ? LOW : HIGH);
+        digitalWrite(digPin, (RELAY_ACTIVE!=0) ? LOW : HIGH);
     }
     
     //Always successful
@@ -164,13 +164,13 @@ inline uint8_t SensorPrev(uint8_t currSensor)
 }
 
 //Returns true if select key is pressed
-bool SelectKeyPressed()
+bool SelectKeyPressed(DFR_Key *keypad)
 {
-    int tempKey;
+    uint8_t tempKey;
 
     do
     {
-        tempKey  = keypad.getKey();
+        tempKey  = keypad->getKey();
     } while (tempKey == SAMPLE_WAIT);
     
     if (tempKey == SELECT_KEY) return true;

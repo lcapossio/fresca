@@ -35,9 +35,11 @@ Description:
 #ifndef FRESCA_H
 #define FRESCA_H
 
+    typedef int16_t TEMP_DATA_TYPE;
+
     ////////////////////////////////////////
     //MACROS
-    #define TEMP_DATA_TYPE int16_t
+
     #define ROUND(x) ((x)>=0?(TEMP_DATA_TYPE)((x)+0.5):(TEMP_DATA_TYPE)((x)-0.5))
     //Convert to signed fixed point, max 16 bits, truncates result
     #define TEMPFLOAT2FIX(VAL_FP,SCALE) (TEMP_DATA_TYPE) ROUND(VAL_FP*(float)SCALE)
@@ -50,22 +52,26 @@ Description:
     #define TEMP_FRAC_BITS         4      //Fractional bits for temperature representation
     #define TEMP_SCALE             (1<<TEMP_FRAC_BITS) //Scaling factor to transform floating point to fixed point
     
-    //Define steps and max/min temperature values, user can modify this
+    //Define steps and max/min temperature values in deg celsius, user can modify this
     #define THRESHOLD_STEP_FP      0.25   //In floating point
     #define OFFSET_STEP_FP         0.0625 //In floating point
     #define MAX_TEMP_FP            30.0   //Max Temp for CoolOn
     #define MIN_TEMP_FP            5.0    //Min Temp for CoolOff
     #define MAX_OFF_TEMP_FP        1.0    //Max Temp for OffsetCalib
     #define MIN_OFF_TEMP_FP        1.0    //Min Temp for OffsetCalib (will be interpreted as negative)
+    #define COOLON_DFLT_FP         24.0   //
+    #define COOLOFF_DFLT_FP        25.0   //
     
     
-    //Now calculate fixed point values
+    //Now calculate fixed point values, don't modify this
     #define THRESHOLD_STEP          TEMPFLOAT2FIX(THRESHOLD_STEP_FP,TEMP_SCALE)   //
     #define OFFSET_STEP             TEMPFLOAT2FIX(OFFSET_STEP_FP,TEMP_SCALE)      //
     #define MAX_TEMP                TEMPFLOAT2FIX(MAX_TEMP_FP,TEMP_SCALE)         //
     #define MIN_TEMP                TEMPFLOAT2FIX(MIN_TEMP_FP,TEMP_SCALE)         //
     #define MAX_OFF_TEMP            TEMPFLOAT2FIX(MAX_OFF_TEMP_FP,TEMP_SCALE)     //
     #define MIN_OFF_TEMP            TEMPFLOAT2FIX(MIN_OFF_TEMP_FP,TEMP_SCALE)     //
+    #define COOLON_DFLT             TEMPFLOAT2FIX(COOLON_DFLT_FP,TEMP_SCALE)      //
+    #define COOLOFF_DFLT            TEMPFLOAT2FIX(COOLOFF_DFLT_FP,TEMP_SCALE)     //
     
 
     ////////////////////////////////////////
@@ -104,24 +110,24 @@ Description:
     
     ////////////////////////////////////////
     //Global variables
-    extern uint8_t     g_showtempLCD;                       //Set to the Sensor number you want to display on the LCD (0: sensor0)
-    extern int16_t  g_TempReading[NUM_DS1820_SENSORS];      //TempReading for every sensor
-    extern int16_t  g_CoolOnThresh[NUM_DS1820_SENSORS];     //CoolOnThreshold for every sensor
-    extern int16_t  g_CoolOffThresh[NUM_DS1820_SENSORS];    //CoolOffThreshold for every sensor
-    extern int16_t  g_OffsetSensor[NUM_DS1820_SENSORS];     //Offset calibration for every sensor
+    // extern uint8_t  g_showtempLCD;                          //Set to the Sensor number you want to display on the LCD (0: sensor0)
+    // extern int16_t  g_TempReading[NUM_DS1820_SENSORS];      //TempReading for every sensor
+    // extern int16_t  g_CoolOnThresh[NUM_DS1820_SENSORS];     //CoolOnThreshold for every sensor
+    // extern int16_t  g_CoolOffThresh[NUM_DS1820_SENSORS];    //CoolOffThreshold for every sensor
+    // extern int16_t  g_OffsetSensor[NUM_DS1820_SENSORS];     //Offset calibration for every sensor
     
     //Objects (Peripherals)
-    extern TM1637Display *g_disp7seg[NUM_DS1820_SENSORS];   //7segment displays (TM1637)
-    extern OneWire *g_ds1820[NUM_DS1820_SENSORS];           //DS18B20 Digital temperature sensor
-    extern const uint8_t g_CoolSwitch[NUM_DS1820_SENSORS];  //Cooling actuators (Relays)
-    extern LiquidCrystal lcd;                               //LCD 16x2 based on the Hitachi HD44780 controller
-    extern DFR_Key keypad;                                  //Analog Keypad on the LCD
+    // extern TM1637Display *g_disp7seg[NUM_DS1820_SENSORS];   //7segment displays (TM1637)
+    // extern OneWire *g_ds1820[NUM_DS1820_SENSORS];           //DS18B20 Digital temperature sensor
+    // extern const uint8_t g_CoolSwitch[NUM_DS1820_SENSORS];  //Cooling actuators (Relays)
+    // extern LiquidCrystal lcd;                               //LCD 16x2 based on the Hitachi HD44780 controller
+    // extern DFR_Key keypad;                                  //Analog Keypad on the LCD
     ////////////////////////////////////////
     
     ////////////////////////////////////////
     //Function prototypes
     void read_temp_sensors(); //Read all temperature sensors and update global temperature variables
-    inline void main_menu();  //Main menu
+    void main_menu();  //Main menu
     ////////////////////////////////////////
     
 #endif
