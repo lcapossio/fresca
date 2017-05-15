@@ -34,14 +34,14 @@ The current code has the following features:
 
 The repo contains two programs, they reside under the *'src'* folder.  
 
-* **'test'** is designed to test the basic parts of the project: only one sensor, one relay and one 7-segment displays are supported
 * **'fresca'** is the main program, it currently supports up to 8 sensors/7-segment/relays
+* **'test'** is designed to test the basic parts of the project: only one sensor, one relay and one 7-segment displays are supported
 
 ### Main menu
 
 All user input/interaction is displayed on the LCD, and user input is possible by using the keypad.
 The 7-segment displays monitor the temperature of each sensor. This is regardless of what mode the program is in.
-Temperature updates every second (actually a bit faster, 900ms)
+Temperature updates every second (actually a bit faster, around 900ms)
 
 ### Menu navigation
 On the main screen temperature is displayed for the current selected sensor (default sensor 0). Using the *UP/DOWN* arrows selects a different sensor.
@@ -59,7 +59,7 @@ Each sensor is connected to a digital I/O.
 
 ### Celsius/Fahrenheit
 
-To display temperature in fahrenheit set the **TEMP_FAHRENHEIT** constant in **'fresca.h'** to other value than zero. Otherwise temperature is displayed in degrees celsius.
+To display temperature in fahrenheit set the **TEMP_FAHRENHEIT** define in **'fresca.h'** to other value than zero. Otherwise temperature is displayed in degrees celsius.
 
 ### Further customization/debugging
 
@@ -88,7 +88,7 @@ Grab them and install them in your Arduino IDE
 
 * Add heating to the temperature control
 * Support for other keypads
-* Add Web server to monitor temperature using a wifi shield
+* Add web server to monitor temperature using a wifi shield
 
 ## NOTES
 ***
