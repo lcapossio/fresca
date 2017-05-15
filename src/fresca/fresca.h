@@ -103,27 +103,10 @@ Description:
     #define EEPROM_MAGIC_VAR_ADDR 0             //Byte variable stored in this location indicates EEPROM has been written previously
     #define EEPROM_MAGIC_VAR_VALUE 0x5A
     #define EEPROM_START_ADDR 1
-    #define EEPROM_BLOCKSIZE  sizeof(int16_t)*2 //Each block contains: CoolOn, CoolOff
-    #define EEPROM_ADDR_INCR  sizeof(int16_t)
+    #define EEPROM_BLOCKSIZE  sizeof(TEMP_DATA_TYPE)*2 //Each block contains: CoolOn, CoolOff
+    #define EEPROM_ADDR_INCR  sizeof(TEMP_DATA_TYPE)
     ////////////////////////////////////////
-    
-    
-    ////////////////////////////////////////
-    //Global variables
-    // extern uint8_t  g_showtempLCD;                          //Set to the Sensor number you want to display on the LCD (0: sensor0)
-    // extern int16_t  g_TempReading[NUM_DS1820_SENSORS];      //TempReading for every sensor
-    // extern int16_t  g_CoolOnThresh[NUM_DS1820_SENSORS];     //CoolOnThreshold for every sensor
-    // extern int16_t  g_CoolOffThresh[NUM_DS1820_SENSORS];    //CoolOffThreshold for every sensor
-    // extern int16_t  g_OffsetSensor[NUM_DS1820_SENSORS];     //Offset calibration for every sensor
-    
-    //Objects (Peripherals)
-    // extern TM1637Display *g_disp7seg[NUM_DS1820_SENSORS];   //7segment displays (TM1637)
-    // extern OneWire *g_ds1820[NUM_DS1820_SENSORS];           //DS18B20 Digital temperature sensor
-    // extern const uint8_t g_CoolSwitch[NUM_DS1820_SENSORS];  //Cooling actuators (Relays)
-    // extern LiquidCrystal lcd;                               //LCD 16x2 based on the Hitachi HD44780 controller
-    // extern DFR_Key keypad;                                  //Analog Keypad on the LCD
-    ////////////////////////////////////////
-    
+
     ////////////////////////////////////////
     //Function prototypes
     void read_temp_sensors(); //Read all temperature sensors and update global temperature variables

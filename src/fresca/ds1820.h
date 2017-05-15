@@ -40,8 +40,10 @@ typedef int16_t DS1820_TEMP_DATA_TYPE; //Data type for temperature in fixed poin
 #define CMD_COPY_SCRATCHPAD  0x48 //Copy scratchpad contents to EEPROM (Config register, TH and TL bytes)
 ////////////////////////////////////////
 
-#ifndef DEBUG_DS1820
-#define DEBUG_DS1820 false //Don't debug by default
+#ifdef  DEBUG_DS1820
+#define DBG_DS1820 true
+#else
+#define DBG_DS1820 false //Don't debug by default
 #endif
 
 //DS1820 class inherits methods from OneWire class
