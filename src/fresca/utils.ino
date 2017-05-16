@@ -42,12 +42,12 @@ void delay_noInterrupts(uint16_t millis)
 }
 
 //Prints temperature in the second row of the LCD
-bool PrintTempLCD(int16_t temp, bool show_error, LiquidCrystal * lcd)
+bool PrintTempLCD(TEMP_DATA_TYPE temp, bool show_error, LiquidCrystal * lcd)
 {
     // Separate off the whole and fractional portions, since sprintf doesn't support printing floats!!!
     char print_buf[MAX_BUF_CHARS];
     bool SignBit;
-    int16_t Whole, Fract;
+    TEMP_DATA_TYPE Whole, Fract;
     
     if (TEMP_FAHRENHEIT)
     {
@@ -69,16 +69,16 @@ bool PrintTempLCD(int16_t temp, bool show_error, LiquidCrystal * lcd)
 }
 
 //Turn cooling on/off
-inline bool SwitchCooling(uint8_t digPin, bool state)
+inline bool SwitchRelay(uint8_t digPin, bool state)
 {
     if (state)
     {
-        //Turn on cooling
+        //Turn on relay
         digitalWrite(digPin, (RELAY_ACTIVE!=0) ? HIGH : LOW);
     }
     else
     {
-        //Turn off cooling
+        //Turn off relay
         digitalWrite(digPin, (RELAY_ACTIVE!=0) ? LOW : HIGH);
     }
     
@@ -86,8 +86,7 @@ inline bool SwitchCooling(uint8_t digPin, bool state)
     return true;
 }
 
-
-int UpdateCoolOn(int currVal, int CoolOffVal, bool inc_dec)
+TEMP_DATA_TYPE UpdateCoolOn(TEMP_DATA_TYPE currVal, TEMP_DATA_TYPE CoolOffTh, bool inc_dec)
 {
     //Step
     if (inc_dec)
@@ -106,15 +105,15 @@ int UpdateCoolOn(int currVal, int CoolOffVal, bool inc_dec)
     {
         currVal = MAX_TEMP;
     }
-    else if (currVal < CoolOffVal+THRESHOLD_STEP)
+    else if (currVal < CoolOffTh+THRESHOLD_STEP)
     {
-        currVal = CoolOffVal+THRESHOLD_STEP;
+        currVal = CoolOffTh+THRESHOLD_STEP;
     }
     
     return currVal;
 }
 
-int UpdateCoolOff(int currVal, int CoolOnVal, bool inc_dec)
+TEMP_DATA_TYPE UpdateCoolOff(TEMP_DATA_TYPE currVal, TEMP_DATA_TYPE CoolOnTh, bool inc_dec)
 {
     //Step
     if (inc_dec)
@@ -133,9 +132,63 @@ int UpdateCoolOff(int currVal, int CoolOnVal, bool inc_dec)
     {
         currVal = MIN_TEMP;
     }
-    else if (currVal > CoolOnVal-THRESHOLD_STEP)
+    else if (currVal > CoolOnTh-THRESHOLD_STEP)
     {
-        currVal = CoolOnVal-THRESHOLD_STEP;
+        currVal = CoolOnTh-THRESHOLD_STEP;
+    }
+    
+    return currVal;
+}
+
+TEMP_DATA_TYPE UpdateHeatOn(TEMP_DATA_TYPE currVal, TEMP_DATA_TYPE HeatOffTh, bool inc_dec)
+{
+    //Step
+    if (inc_dec)
+    {
+        //Increment
+        currVal+=THRESHOLD_STEP;
+    }
+    else
+    {
+        //Decrement
+        currVal-=THRESHOLD_STEP;
+    }
+    
+    //Check limits
+    if (currVal < MIN_TEMP)
+    {
+        currVal = MIN_TEMP;
+    }
+    else if (currVal > HeatOffTh-THRESHOLD_STEP)
+    {
+        currVal = HeatOffTh-THRESHOLD_STEP;
+    }
+    
+    return currVal;
+}
+
+TEMP_DATA_TYPE UpdateHeatOff(TEMP_DATA_TYPE currVal, TEMP_DATA_TYPE HeatOnTh, bool inc_dec)
+{
+    //Step
+    if (inc_dec)
+    {
+        //Increment
+        currVal+=THRESHOLD_STEP;
+    }
+    else
+    {
+        //Decrement
+        currVal-=THRESHOLD_STEP;
+    }
+    
+    //Check limits
+    if (currVal > MAX_TEMP)
+    {
+        currVal = MAX_TEMP;
+    }
+    else if (currVal < HeatOnTh+THRESHOLD_STEP)
+    {
+        currVal = HeatOnTh+THRESHOLD_STEP;
     }
     
     return currVal;
@@ -166,7 +219,7 @@ inline uint8_t SensorPrev(uint8_t currSensor)
 //Returns true if select key is pressed
 bool SelectKeyPressed(DFR_Key *keypad)
 {
-    uint8_t tempKey;
+    DFR_Key_type tempKey;
 
     do
     {
@@ -178,38 +231,10 @@ bool SelectKeyPressed(DFR_Key *keypad)
     return false;
 }
 
-//Write user bytes into DS1820 and copy it to the EEPROM
-//Offset will be stored in TH and TL register of DS1820
-void ds1820_WriteUserBytes(OneWire *sensor, uint8_t config_reg, int16_t offset)
-{
-    uint8_t TH, TL;
-    
-    //Mask offset into separate bytes
-    TH = (offset >> 8) & 0xFF;
-    TL = offset & 0xFF;
-    
-    //
-    sensor->reset();
-    sensor->skip();         //SkipROM command, we only have one sensor per wire
-    sensor->write(0x4E);    //Write Scratchpad
-    
-    //Now write 3 bytes in this order TH, TL and configuration register
-    sensor->write(TH);          //Write byte
-    sensor->write(TL);          //Write byte
-    sensor->write(config_reg);  //Write byte
-    
-    //Now transfer the scratchpad contents to EEPROM
-    sensor->reset();
-    sensor->skip();         //SkipROM command, we only have one sensor per wire
-    sensor->write(0x48);    //Copy Scratchpad
-
-    return;
-}
-
 //Celsius comes in Q11.4
-int16_t celsius2fahrenheit(int16_t celsius)
+TEMP_DATA_TYPE celsius2fahrenheit(TEMP_DATA_TYPE celsius)
 {
-    int16_t fahrenheit;
+    TEMP_DATA_TYPE fahrenheit;
     
     //(9/5*celsius) + 32
     //or (1.8*celsius) + 32

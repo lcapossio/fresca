@@ -90,6 +90,10 @@ Grab them and install them in your Arduino IDE
 * Support for other keypads
 * Add web server to monitor temperature using a wifi shield
 
+## Why only one sensor per wire ?
+
+As many of you know it is possible to accommodate many OneWire sensors in a single wire. Even though this represents a significant reduction in pin count, it makes things more complicated for the user. With one sensor per wire, the user can clearly identify what thresholds temperature reading belong to which sensor, and can even interchange sensors and replace them freely. Otherwise there would need to be a ROM matchng mechanism for new/current sensors to respective thresholds. So the setup is easier and there is less confusion, and getting a high pin-count arduino is really cheap.
+
 ## NOTES
 ***
 

@@ -54,9 +54,11 @@ Description:
 
 ////////////////////////////////////////
 // ****** DEFINE PINOUT HERE ****** PINOUT_LINE
+//Define pinout for MAXIMUM number of sensors (MAX_NUM_DS1820_SENSORS), if less sensors are actually implemented (NUM_DS1820_SENSORS), the rest of the pins will not be used or touched at all
 const uint8_t gc_7seg_dio_pins[MAX_NUM_DS1820_SENSORS]   = {7,14,15,16,17,18,19,20};   //All TM1637 DIO are specified here
 const uint8_t gc_7seg_clk_pins                           = {8};                        //One clock for all TM1637 displays
 const uint8_t g_CoolSwitch[MAX_NUM_DS1820_SENSORS]       = {9,21,22,23,24,25,26,27};   //Contains pin number for relay index
+const uint8_t g_HeatSwitch[MAX_NUM_DS1820_SENSORS]       = {35,36,37,38,39,40,41,42};  //Contains pin number for relay index
 const uint8_t gc_ds1820_pins[MAX_NUM_DS1820_SENSORS]     = {6,28,29,30,31,32,33,34};   //DS18B20 Digital temperature sensor
 const uint8_t gc_lcd_pins[6]                             = {12, 11, 5, 4, 3, 2};       //LCD 16x2 based on the Hitachi HD44780 controller (rs, enable, d4, d5, d6, d7)
 const uint8_t gc_keypad_pins                             = 0;                          //Analog Keypad on the LCD PCB (has to be an analog pin)
@@ -68,6 +70,8 @@ uint8_t  g_showtempLCD = 0;                         //Set to the Sensor number y
 TEMP_DATA_TYPE  g_TempReading[NUM_DS1820_SENSORS]   = {0}; //Last successful temperature reading
 TEMP_DATA_TYPE  g_CoolOnThresh[NUM_DS1820_SENSORS]  = {0};
 TEMP_DATA_TYPE  g_CoolOffThresh[NUM_DS1820_SENSORS] = {0};
+TEMP_DATA_TYPE  g_HeatOnThresh[NUM_DS1820_SENSORS]  = {0};
+TEMP_DATA_TYPE  g_HeatOffThresh[NUM_DS1820_SENSORS] = {0};
 TEMP_DATA_TYPE  g_OffsetSensor[NUM_DS1820_SENSORS]  = {0};
 ////////////////////////////////////////
 
@@ -96,7 +100,7 @@ void loop(void)
     MAIN_LOOP:while(true)
     {
         read_temp_sensors();
-        delay_noInterrupts(750); //750ms conversion time for 12 bits
+        delay_noInterrupts(TEMP_POLL_SEC); //750ms conversion time for 12 bits
     }
 }
 
@@ -190,31 +194,47 @@ void setup(void)
     
     //////////////////////////////////////////////////
     //Recall EEPROM values
-    Serial.print("Recalling EEPROM values ... ");
-    if ( (EEPROM.read(EEPROM_MAGIC_VAR_ADDR) != EEPROM_MAGIC_VAR_VALUE) || SelectKeyPressed(&keypad) )
+    uint16_t eeprom_offset;
+    Serial.print("Trying to recall EEPROM data ... ");
+    if ( (EEPROM.read(EEPROM_MAGIC_NUM_ADDR) != EEPROM_MAGIC_NUM_VALUE) || (SelectKeyPressed(&keypad)) )
     {
         //We haven't written this EEPROM before, or user is indicating a reset of the EEPROM
         //Store new default values
-        Serial.print("***NOT found magic number, writing default values ...");
-        EEPROM.put(EEPROM_MAGIC_VAR_ADDR, (uint8_t) EEPROM_MAGIC_VAR_VALUE); //Write magic number
+        if (EEPROM.read(EEPROM_MAGIC_NUM_ADDR) != EEPROM_MAGIC_NUM_VALUE)
+        {
+            Serial.print("***NOT found magic number, writing default values ...");
+            EEPROM.put(EEPROM_MAGIC_NUM_ADDR, (uint8_t) EEPROM_MAGIC_NUM_VALUE); //Write magic number
+        }
+        else
+        {
+            Serial.print("***SELECT key pressed, writing default values ...");
+        }
         
         //Write default values
+        eeprom_offset = EEPROM_START_ADDR;
         for (i=0; i<NUM_DS1820_SENSORS; i++)
         {
             g_CoolOnThresh[i] = COOLON_DFLT;
-            EEPROM.put(i*EEPROM_BLOCKSIZE+EEPROM_START_ADDR+0, g_CoolOnThresh[i]);
+            EEPROM.put(eeprom_offset, g_CoolOnThresh[i]); eeprom_offset+=sizeof(TEMP_DATA_TYPE);
             g_CoolOffThresh[i] = COOLOFF_DFLT;
-            EEPROM.put(i*EEPROM_BLOCKSIZE+EEPROM_START_ADDR+sizeof(TEMP_DATA_TYPE), g_CoolOffThresh[i]);
+            EEPROM.put(eeprom_offset, g_CoolOffThresh[i]);eeprom_offset+=sizeof(TEMP_DATA_TYPE);
+            g_HeatOnThresh[i] = HEATON_DFLT;
+            EEPROM.put(eeprom_offset, g_HeatOnThresh[i]); eeprom_offset+=sizeof(TEMP_DATA_TYPE);
+            g_HeatOffThresh[i] = HEATOFF_DFLT;
+            EEPROM.put(eeprom_offset, g_HeatOffThresh[i]);eeprom_offset+=sizeof(TEMP_DATA_TYPE);
         }
     }
     else
     {
-        //We have written this EEPROM before, recall the values
-        Serial.print("Successfully found magic number, recalling values ...");
+        //We have written this EEPROM before, recall the data
+        Serial.print("Successfully found magic number, recalling data ...");
+        eeprom_offset = EEPROM_START_ADDR;
         for (i=0; i<NUM_DS1820_SENSORS; i++)
         {
-            EEPROM.get(i*EEPROM_BLOCKSIZE+EEPROM_START_ADDR+0, g_CoolOnThresh[i]);
-            EEPROM.get(i*EEPROM_BLOCKSIZE+EEPROM_START_ADDR+sizeof(TEMP_DATA_TYPE), g_CoolOffThresh[i]);
+            EEPROM.get(eeprom_offset, g_CoolOnThresh[i]); eeprom_offset+=sizeof(TEMP_DATA_TYPE);
+            EEPROM.get(eeprom_offset, g_CoolOffThresh[i]);eeprom_offset+=sizeof(TEMP_DATA_TYPE);
+            EEPROM.get(eeprom_offset, g_HeatOnThresh[i]); eeprom_offset+=sizeof(TEMP_DATA_TYPE);
+            EEPROM.get(eeprom_offset, g_HeatOffThresh[i]);eeprom_offset+=sizeof(TEMP_DATA_TYPE);
         }
     }
     Serial.print("Done!");Serial.println();
@@ -226,7 +246,6 @@ void setup(void)
     TCCR1A = 0;
     TCCR1B = 0;
     TCNT1  = 0; //Timer count register
-    // OCR1A  = (unsigned) ((16.0e6/256.0)*TEMP_POLL_SEC); // Output compare match register (16MHz/256)*Segs = (16e6/256)*0.8Seg, if using 256 prescaler
     TCCR1B |= (1 << WGM12) | (1 << CS12);               // Clear Timer on Compare (CTC) mode ; 256 prescaler
     Serial.print("Done!");Serial.println();
     //////////////////////////////////////////////////
@@ -253,13 +272,13 @@ ISR(TIMER1_COMPA_vect)
 //Poll keys, main state machine
 inline void main_menu()
 {
-    enum state_type {st_show_temp,st_change_CoolOn, st_change_CoolOff, st_calib_sensor}; //State machine states
+    enum state_type {st_show_temp,st_change_CoolOn,st_change_CoolOff,st_change_HeatOn,st_change_HeatOff,st_calib_sensor}; //State machine states
     char print_buf[MAX_BUF_CHARS];
-    int tempKey                = 0;
-    static int  lastKey        = 0;
-    static uint8_t currSensor  = 0;
-    static uint8_t repeat_key  = 0;
-    static state_type state    = st_show_temp;
+    DFR_Key_type tempKey            = NO_KEY;
+    static DFR_Key_type  lastKey    = NO_KEY;
+    static uint8_t currSensor       = 0;
+    static uint8_t repeat_key       = 0;
+    static state_type state         = st_show_temp;
     static TEMP_DATA_TYPE TempOffsetSensor;
     
     ////////////////////////////////////////
@@ -440,13 +459,13 @@ inline void main_menu()
                 break;
             }
             //Check limits
-            if (TempOffsetSensor > (TEMP_DATA_TYPE) MAX_OFF_TEMP)
+            if (TempOffsetSensor > MAX_OFF_TEMP)
             {
                 TempOffsetSensor = MAX_OFF_TEMP;
             }
-            else if (TempOffsetSensor < -(TEMP_DATA_TYPE) MIN_OFF_TEMP)
+            else if (TempOffsetSensor < - MIN_OFF_TEMP)
             {
-                TempOffsetSensor = -(TEMP_DATA_TYPE)MIN_OFF_TEMP;
+                TempOffsetSensor = -MIN_OFF_TEMP;
             }
             //Print on LCD
             snprintf(print_buf, LCD_WIDTH+1, "Off calib sensor %d",currSensor);
@@ -490,11 +509,12 @@ inline void read_temp_sensors()
         //////////////////////////////////////////////////////////////////
         //Read temperature
         //////////////////////////////////////////////////////////////////
+        //Update temperature variables
         reading_ok = g_ds1820[sensor]->UpdateTemp(USE_CRC);
         //Start temperature conversion again
         g_ds1820[sensor]->StartTemp();
         
-        if (reading_ok == true) //Check if sensor preset or CRC error
+        if (reading_ok == true) //Check if sensor present or CRC error
         {
             g_TempReading[sensor]  = g_ds1820[sensor]->GetTemp();
             g_OffsetSensor[sensor] = g_ds1820[sensor]->GetOffset();
@@ -511,19 +531,35 @@ inline void read_temp_sensors()
             }
             
             //////////////////////////////////////////////////////////////////
-            //Control Cooling
+            //Control Cooling/Heating
             //////////////////////////////////////////////////////////////////
+            /////////
+            //Cooling
             if (g_TempReading[sensor] >= g_CoolOnThresh[sensor])
             {
                 //If temperature rises above CoolOnThreshold
                 //Turn on cooling
-                SwitchCooling(g_CoolSwitch[sensor], true);
+                SwitchRelay(g_CoolSwitch[sensor], true);
             }
             else if (g_TempReading[sensor] <= g_CoolOffThresh[sensor])
             {
-                //If temperature decreases below CoolOffThreshold
+                //If temperature falls below CoolOffThreshold
                 //Turn off cooling
-                SwitchCooling(g_CoolSwitch[sensor], false);
+                SwitchRelay(g_CoolSwitch[sensor], false);
+            }
+            /////////
+            //Heating
+            if (g_TempReading[sensor] <= g_HeatOnThresh[sensor])
+            {
+                //If temperature falls below HeatOnThreshold
+                //Turn on heating
+                SwitchRelay(g_HeatSwitch[sensor], true);
+            }
+            else if (g_TempReading[sensor] >= g_HeatOffThresh[sensor])
+            {
+                //If temperature rises above HeatOffThreshold
+                //Turn off heating
+                SwitchRelay(g_HeatSwitch[sensor], false);
             }
             
             //////////////////////////////////////////////////////////////////
@@ -532,8 +568,8 @@ inline void read_temp_sensors()
 
             bool SignBit;
             
-            ///////////
-            //7-segment
+            ///////////////////
+            //7-segment display
             int32_t DispTemp32;
             SignBit    = (g_TempReading[sensor] < 0) ? true : false;                     //test most sig bit
             if (TEMP_FAHRENHEIT==0)

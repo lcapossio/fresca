@@ -88,9 +88,9 @@ uint8_t DS1820::UpdateTemp(uint8_t chk_crc)
                 if (DBG_DS1820) {dbgSerial->print(" - CRC OK");dbgSerial->println();}
                 
                 //Update temperature
-                LowByte  = data[0]; //Temp low byte
-                HighByte = data[1]; //Temp high byte
-                TempReading = (HighByte << 8) + LowByte;
+                LowByte      = data[0]; //Temp low byte
+                HighByte     = data[1]; //Temp high byte
+                _TempReading = (HighByte << 8) + LowByte;
             }
             else
             {
@@ -99,9 +99,9 @@ uint8_t DS1820::UpdateTemp(uint8_t chk_crc)
             }
             
             //Update Offset calibration from DS1820 scratchpad
-            HighByte     = data[2]; //Temp high byte
-            LowByte      = data[3]; //Temp low byte
-            SensorOffset = (HighByte << 8) + LowByte;
+            HighByte      = data[2]; //Offset high byte
+            LowByte       = data[3]; //Offset low byte
+            _SensorOffset = (HighByte << 8) + LowByte;
         }
     }
     else
@@ -118,13 +118,13 @@ uint8_t DS1820::UpdateTemp(uint8_t chk_crc)
 //Gets latest temperature reading
 DS1820_TEMP_DATA_TYPE DS1820::GetTemp()
 {
-    return TempReading;
+    return _TempReading;
 }
 
 //Gets latest offset reading
 DS1820_TEMP_DATA_TYPE DS1820::GetOffset()
 {
-    return SensorOffset;
+    return _SensorOffset;
 }
 
 //Start temperature conversion

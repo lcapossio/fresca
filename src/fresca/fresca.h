@@ -39,7 +39,10 @@ Description:
 
     ////////////////////////////////////////
     //MACROS
-
+    //Set timer1 registers
+    #define SET_TIMER1(VAL)  OCR1A  = (unsigned) VAL;   /*Output compare match*/ \
+                             TCNT1  = 0;                /*Reset timer count register*/
+    //
     #define ROUND(x) ((x)>=0?(TEMP_DATA_TYPE)((x)+0.5):(TEMP_DATA_TYPE)((x)-0.5))
     //Convert to signed fixed point, max 16 bits, truncates result
     #define TEMPFLOAT2FIX(VAL_FP,SCALE) (TEMP_DATA_TYPE) ROUND(VAL_FP*(float)SCALE)
@@ -47,7 +50,8 @@ Description:
 
     ////////////////////////////////////////
     //
-    #define CRISTAL_FREQ_MHZ       16.0   //Arduino operating frequency Floating point
+    #define CRISTAL_FREQ_MHZ       16.0                     //Arduino operating frequency Floating point in Megahertz
+    #define CRISTAL_FREQ_HZ        (CRISTAL_FREQ_MHZ*1e6)   //Arduino operating frequency Floating point in Hertz
     #define TIMER1_PRESCALE        256.0  //Floating point, don't change
     #define TEMP_FRAC_BITS         4      //Fractional bits for temperature representation
     #define TEMP_SCALE             (1<<TEMP_FRAC_BITS) //Scaling factor to transform floating point to fixed point
@@ -59,8 +63,10 @@ Description:
     #define MIN_TEMP_FP            5.0    //Min Temp for CoolOff
     #define MAX_OFF_TEMP_FP        1.0    //Max Temp for OffsetCalib
     #define MIN_OFF_TEMP_FP        1.0    //Min Temp for OffsetCalib (will be interpreted as negative)
-    #define COOLON_DFLT_FP         24.0   //
-    #define COOLOFF_DFLT_FP        25.0   //
+    #define COOLON_DFLT_FP         25.0   //
+    #define COOLOFF_DFLT_FP        24.0   //
+    #define HEATON_DFLT_FP         24.0   //
+    #define HEATOFF_DFLT_FP        25.0   //
     
     
     //Now calculate fixed point values, don't modify this
@@ -72,12 +78,14 @@ Description:
     #define MIN_OFF_TEMP            TEMPFLOAT2FIX(MIN_OFF_TEMP_FP,TEMP_SCALE)     //
     #define COOLON_DFLT             TEMPFLOAT2FIX(COOLON_DFLT_FP,TEMP_SCALE)      //
     #define COOLOFF_DFLT            TEMPFLOAT2FIX(COOLOFF_DFLT_FP,TEMP_SCALE)     //
+    #define HEATON_DFLT             TEMPFLOAT2FIX(HEATON_DFLT_FP,TEMP_SCALE)      //
+    #define HEATOFF_DFLT            TEMPFLOAT2FIX(HEATOFF_DFLT_FP,TEMP_SCALE)     //
     
 
     ////////////////////////////////////////
     //Constants, user can modify this
     #define MAX_NUM_DS1820_SENSORS 8
-    #define NUM_DS1820_SENSORS     8       //One sensor per wire
+    #define NUM_DS1820_SENSORS     8       //One sensor per wire, SET TO THE ACTUAL NUMBER OF SENSORS
     #define DS1820_CONFIG_REG      0x7F    //12-bit resolution, no more options
     
     #define TEMP_FAHRENHEIT 0            //!=0 temperature is displayed in fahrenheit
@@ -86,24 +94,24 @@ Description:
     #define DEBUG_PERF      0            //!=0 serial debug messages are enabled (Performance and RAM usage)
     #define USE_CRC         1            //!=0 DS1820 CRC check is enabled
     #define MAX_BUF_CHARS  64            //Max. characters for print buffer
-    #define TEMP_POLL_SEC 0.8            //Temperature polling in seconds
+    #define TEMP_POLL_SEC 750            //Temperature polling in milliseconds
     #define LCD_WIDTH 16                 //LCD horizontal size
     #define LCD_HEIGHT 2                 //LCD vertical size
     #define RELAY_ACTIVE 0               //0: Active LOW relays, 1 active HIGH relays
     #define KEYPAD_REFRESH_RATE 20       //Sets the sample rate of the keypad at once every x milliseconds.
-    #define TIMER_20MS          (((CRISTAL_FREQ_MHZ*1e6)/TIMER1_PRESCALE)*0.02)  //OCR1A value
-    #define TIMER_100MS         (((CRISTAL_FREQ_MHZ*1e6)/TIMER1_PRESCALE)*0.1)   //OCR1A value
-    #define TIMER_250MS         (((CRISTAL_FREQ_MHZ*1e6)/TIMER1_PRESCALE)*0.25)  //OCR1A value
-    #define TIMER_500MS         (((CRISTAL_FREQ_MHZ*1e6)/TIMER1_PRESCALE)*0.5)   //OCR1A value
+    #define TIMER_20MS          ((CRISTAL_FREQ_HZ/TIMER1_PRESCALE)*0.02)  //OCR1A value
+    #define TIMER_100MS         ((CRISTAL_FREQ_HZ/TIMER1_PRESCALE)*0.1)   //OCR1A value
+    #define TIMER_250MS         ((CRISTAL_FREQ_HZ/TIMER1_PRESCALE)*0.25)  //OCR1A value
+    #define TIMER_500MS         ((CRISTAL_FREQ_HZ/TIMER1_PRESCALE)*0.5)   //OCR1A value
     #define INIT_DELAY          2000                   //Time to before starting main loop in milliseconds
     ////////////////////////////////////////
 
     ////////////////////////////////////////
     //EEPROM
-    #define EEPROM_MAGIC_VAR_ADDR 0             //Byte variable stored in this location indicates EEPROM has been written previously
-    #define EEPROM_MAGIC_VAR_VALUE 0x5A
+    #define EEPROM_MAGIC_NUM_ADDR 0             //Byte variable stored in this location indicates EEPROM has been written previously
+    #define EEPROM_MAGIC_NUM_VALUE 0x5A
     #define EEPROM_START_ADDR 1
-    #define EEPROM_BLOCKSIZE  sizeof(TEMP_DATA_TYPE)*2 //Each block contains: CoolOn, CoolOff
+    #define EEPROM_BLOCKSIZE  sizeof(TEMP_DATA_TYPE)*4 //Each block contains: CoolOn, CoolOff, HeatOn and HeatOff
     #define EEPROM_ADDR_INCR  sizeof(TEMP_DATA_TYPE)
     ////////////////////////////////////////
 

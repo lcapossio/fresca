@@ -25,7 +25,7 @@ DFR_Key::DFR_Key(int analog_pin)
     _debouncing  = false;
 }
 
-int DFR_Key::getKey()
+DFR_Key_type DFR_Key::getKey()
 {
     if (_debouncing && (millis() > _oldTime + _refreshRate))
     {

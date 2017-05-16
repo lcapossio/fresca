@@ -3,13 +3,16 @@
 
 #include "Arduino.h"
 
-#define SAMPLE_WAIT -1
-#define NO_KEY      0
-#define SELECT_KEY  1
-#define LEFT_KEY    2
-#define UP_KEY      3
-#define DOWN_KEY    4
-#define RIGHT_KEY   5
+typedef int8_t DFR_Key_type;
+enum DFR_Key_type_const {SAMPLE_WAIT=-1,NO_KEY=0,SELECT_KEY,LEFT_KEY,UP_KEY,DOWN_KEY,RIGHT_KEY}; //State machine states
+
+// #define SAMPLE_WAIT -1
+// #define NO_KEY      0
+// #define SELECT_KEY  1
+// #define LEFT_KEY    2
+// #define UP_KEY      3
+// #define DOWN_KEY    4
+// #define RIGHT_KEY   5
 
 //Analog values
 #define RIGHTKEY_ARV 50
@@ -23,16 +26,16 @@ class DFR_Key
 {
   public:
     DFR_Key(int);
-    int getKey();
+    DFR_Key_type getKey();
     void setRate(int);
   private:
     int _refreshRate;
     int _keyPin;
     int _keyIn;
     int _curInput;
-    int _tempKey;
-    int _curKey;
-    int _prevKey;
+    DFR_Key_type _tempKey;
+    DFR_Key_type _curKey;
+    DFR_Key_type _prevKey;
     boolean _debouncing;
     unsigned long _oldTime;
 };
