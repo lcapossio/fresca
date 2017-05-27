@@ -55,7 +55,7 @@ Description:
 ////////////////////////////////////////
 // ****** DEFINE PINOUT HERE ****** PINOUT_LINE
 //Define pinout for MAXIMUM number of sensors (MAX_NUM_DS1820_SENSORS), if less sensors are actually implemented (NUM_DS1820_SENSORS), the rest of the pins will not be used or touched at all
-const uint8_t gc_7seg_dio_pins[MAX_NUM_DS1820_SENSORS]   = {7,14,15,16,17,18,19,20};   //All TM1637 DIO are specified here
+const uint8_t gc_7seg_dio_pins[MAX_NUM_DS1820_SENSORS]   = {7,14,15,16,17,43,44,20};   //All TM1637 DIO are specified here
 const uint8_t gc_7seg_clk_pins                           = {8};                        //One clock for all TM1637 displays
 const uint8_t g_CoolSwitch[MAX_NUM_DS1820_SENSORS]       = {9,21,22,23,24,25,26,27};   //Contains pin number for relay index
 const uint8_t g_HeatSwitch[MAX_NUM_DS1820_SENSORS]       = {35,36,37,38,39,40,41,42};  //Contains pin number for relay index
