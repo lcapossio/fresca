@@ -68,132 +68,6 @@ bool PrintTempLCD(TEMP_DATA_TYPE temp, bool show_error, LiquidCrystal * lcd)
     return true;
 }
 
-//Turn cooling on/off
-inline bool SwitchRelay(uint8_t digPin, bool state)
-{
-    if (state)
-    {
-        //Turn on relay
-        digitalWrite(digPin, (RELAY_ACTIVE!=0) ? HIGH : LOW);
-    }
-    else
-    {
-        //Turn off relay
-        digitalWrite(digPin, (RELAY_ACTIVE!=0) ? LOW : HIGH);
-    }
-    
-    //Always successful
-    return true;
-}
-
-TEMP_DATA_TYPE UpdateCoolOn(TEMP_DATA_TYPE currVal, TEMP_DATA_TYPE CoolOffTh, bool inc_dec)
-{
-    //Step
-    if (inc_dec)
-    {
-        //Increment
-        currVal+=THRESHOLD_STEP;
-    }
-    else
-    {
-        //Decrement
-        currVal-=THRESHOLD_STEP;
-    }
-    
-    //Check limits
-    if (currVal > MAX_TEMP)
-    {
-        currVal = MAX_TEMP;
-    }
-    else if (currVal < CoolOffTh+THRESHOLD_STEP)
-    {
-        currVal = CoolOffTh+THRESHOLD_STEP;
-    }
-    
-    return currVal;
-}
-
-TEMP_DATA_TYPE UpdateCoolOff(TEMP_DATA_TYPE currVal, TEMP_DATA_TYPE CoolOnTh, bool inc_dec)
-{
-    //Step
-    if (inc_dec)
-    {
-        //Increment
-        currVal+=THRESHOLD_STEP;
-    }
-    else
-    {
-        //Decrement
-        currVal-=THRESHOLD_STEP;
-    }
-    
-    //Check limits
-    if (currVal < MIN_TEMP)
-    {
-        currVal = MIN_TEMP;
-    }
-    else if (currVal > CoolOnTh-THRESHOLD_STEP)
-    {
-        currVal = CoolOnTh-THRESHOLD_STEP;
-    }
-    
-    return currVal;
-}
-
-TEMP_DATA_TYPE UpdateHeatOn(TEMP_DATA_TYPE currVal, TEMP_DATA_TYPE HeatOffTh, bool inc_dec)
-{
-    //Step
-    if (inc_dec)
-    {
-        //Increment
-        currVal+=THRESHOLD_STEP;
-    }
-    else
-    {
-        //Decrement
-        currVal-=THRESHOLD_STEP;
-    }
-    
-    //Check limits
-    if (currVal < MIN_TEMP)
-    {
-        currVal = MIN_TEMP;
-    }
-    else if (currVal > HeatOffTh-THRESHOLD_STEP)
-    {
-        currVal = HeatOffTh-THRESHOLD_STEP;
-    }
-    
-    return currVal;
-}
-
-TEMP_DATA_TYPE UpdateHeatOff(TEMP_DATA_TYPE currVal, TEMP_DATA_TYPE HeatOnTh, bool inc_dec)
-{
-    //Step
-    if (inc_dec)
-    {
-        //Increment
-        currVal+=THRESHOLD_STEP;
-    }
-    else
-    {
-        //Decrement
-        currVal-=THRESHOLD_STEP;
-    }
-    
-    //Check limits
-    if (currVal > MAX_TEMP)
-    {
-        currVal = MAX_TEMP;
-    }
-    else if (currVal < HeatOnTh+THRESHOLD_STEP)
-    {
-        currVal = HeatOnTh+THRESHOLD_STEP;
-    }
-    
-    return currVal;
-}
-
 inline uint8_t SensorNext(uint8_t currSensor)
 {
     currSensor += 1;
@@ -231,6 +105,7 @@ bool SelectKeyPressed(DFR_Key *keypad)
     return false;
 }
 
+//Convert celsius to fahrenheit
 //Celsius comes in Q11.4
 TEMP_DATA_TYPE celsius2fahrenheit(TEMP_DATA_TYPE celsius)
 {

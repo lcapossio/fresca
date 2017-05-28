@@ -49,9 +49,6 @@ Description:
     //Function declarations
     void delay_noInterrupts(uint16_t millis);                                                       //Delays in milliseconds, even when interrupts are disabled
     bool PrintTempLCD(TEMP_DATA_TYPE temp, bool show_error, LiquidCrystal *lcd);                    //Print temperature in second row of LCD
-    bool SwitchRelay(uint8_t digPin, bool state);                                                   //Turn relay on/off
-    TEMP_DATA_TYPE UpdateCoolOn(TEMP_DATA_TYPE currVal, TEMP_DATA_TYPE CoolOffTh, bool inc_dec);    //Update CoolOn threshold
-    TEMP_DATA_TYPE UpdateCoolOff(TEMP_DATA_TYPE currVal, TEMP_DATA_TYPE CoolOnTh, bool inc_dec);    //Update CoolOff threshold
     uint8_t SensorNext(uint8_t currSensor);                                                         //Get next sensor (and wrap around)
     uint8_t SensorPrev(uint8_t currSensor);                                                         //Get previous sensor (and wrap around)
     bool SelectKeyPressed(DFR_Key *keypad);                                                         //Returns true if select key is pressed

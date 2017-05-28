@@ -48,6 +48,7 @@ Description:
 #include <TM1637Display.h>
 #include <DFR_Key.h>
 #include <EEPROM.h>
+#include "TempController.h"
 #include "ds1820.h"
 #include "utils.h"
 #include "fresca.h"
@@ -66,7 +67,7 @@ const uint8_t gc_keypad_pins                             = 0;                   
 
 ////////////////////////////////////////
 //Global variables
-uint8_t  g_showtempLCD = 0;                         //Set to the Sensor number you want to display on the LCD (0: sensor0)
+uint8_t         g_showtempLCD = 0;                         //Set to the Sensor number you want to display on the LCD (0: sensor0)
 TEMP_DATA_TYPE  g_TempReading[NUM_DS1820_SENSORS]   = {0}; //Last successful temperature reading
 TEMP_DATA_TYPE  g_CoolOnThresh[NUM_DS1820_SENSORS]  = {0};
 TEMP_DATA_TYPE  g_CoolOffThresh[NUM_DS1820_SENSORS] = {0};
@@ -77,10 +78,11 @@ TEMP_DATA_TYPE  g_OffsetSensor[NUM_DS1820_SENSORS]  = {0};
 
 ////////////////////////////////////////
 //Define objects
-TM1637Display * g_disp7seg[NUM_DS1820_SENSORS];     //7segment displays
-DS1820 *        g_ds1820[NUM_DS1820_SENSORS];       //DS18B20 Digital temperature sensor
-LiquidCrystal   lcd(gc_lcd_pins[0], gc_lcd_pins[1], gc_lcd_pins[2], gc_lcd_pins[3], gc_lcd_pins[4], gc_lcd_pins[5]); //(rs, enable, d4, d5, d6, d7) //LCD 16x2 based on the Hitachi HD44780 controller
-DFR_Key         keypad(gc_keypad_pins);             //Analog Keypad on the LCD
+TM1637Display                  * g_disp7seg[NUM_DS1820_SENSORS];      //7segment displays
+DS1820                         * g_ds1820[NUM_DS1820_SENSORS];        //DS18B20 Digital temperature sensor
+LiquidCrystal                    lcd(gc_lcd_pins[0], gc_lcd_pins[1], gc_lcd_pins[2], gc_lcd_pins[3], gc_lcd_pins[4], gc_lcd_pins[5]); //(rs, enable, d4, d5, d6, d7) //LCD 16x2 based on the Hitachi HD44780 controller
+DFR_Key                          keypad(gc_keypad_pins);              //Analog Keypad on the LCD
+TempController<TEMP_DATA_TYPE> * TempControllers[NUM_DS1820_SENSORS]; //Temperature controllers
 ////////////////////////////////////////
 
 ////////////////////////////////////////
@@ -179,17 +181,6 @@ void setup(void)
     Serial.print("Done!");Serial.println();
     //////////////////////////////////////////////////
     
-    //////////////////////////////////////////////////
-    //Initialize Relays
-    Serial.print("Initializing relays...");
-    for (i=0;i<NUM_DS1820_SENSORS;i++)
-    {
-        pinMode(g_CoolSwitch[i], OUTPUT);
-        digitalWrite(g_CoolSwitch[i], (RELAY_ACTIVE!=0) ? LOW : HIGH );
-    }
-    Serial.print("Done!");Serial.println();
-    //////////////////////////////////////////////////
-    
     g_showtempLCD=0; //Show temperature for sensor0
     
     //////////////////////////////////////////////////
@@ -236,6 +227,24 @@ void setup(void)
             EEPROM.get(eeprom_offset, g_HeatOnThresh[i]); eeprom_offset+=sizeof(TEMP_DATA_TYPE);
             EEPROM.get(eeprom_offset, g_HeatOffThresh[i]);eeprom_offset+=sizeof(TEMP_DATA_TYPE);
         }
+    }
+    Serial.print("Done!");Serial.println();
+    //////////////////////////////////////////////////
+    
+    //////////////////////////////////////////////////
+    //Initialize Relays
+    Serial.print("Initializing temperature controllers...");
+    uint8_t pins[2];
+    TEMP_DATA_TYPE limits[4];
+    TEMP_DATA_TYPE thresholds[4];
+    for (i=0;i<NUM_DS1820_SENSORS;i++)
+    {
+        thresholds[0]=g_CoolOnThresh[i];thresholds[1]=g_CoolOffThresh[i];
+        thresholds[2]=g_HeatOnThresh[i];thresholds[3]=g_HeatOffThresh[i];
+        pins[0]=g_CoolSwitch[i];pins[1]=g_HeatSwitch[i];
+        limits[0]=TEMPFLOAT2FIX(30.0,TEMP_SCALE);limits[1]=TEMPFLOAT2FIX(5.0,TEMP_SCALE);
+        limits[2]=TEMPFLOAT2FIX(30.0,TEMP_SCALE);limits[3]=TEMPFLOAT2FIX(5.0,TEMP_SCALE);
+        TempControllers[i] = new TempController<TEMP_DATA_TYPE>(TempController_type::Both, pins, thresholds, limits, THRESHOLD_STEP);
     }
     Serial.print("Done!");Serial.println();
     //////////////////////////////////////////////////
@@ -384,11 +393,11 @@ inline void main_menu()
                 break;
                 case RIGHT_KEY:
                     //Increment
-                    g_CoolOnThresh[currSensor]=UpdateCoolOn(g_CoolOnThresh[currSensor],g_CoolOffThresh[currSensor],true); //0.5deg Steps
+                    g_CoolOnThresh[currSensor]=TempControllers[currSensor]->UpdateOnTh(true,0);
                 break;
                 case LEFT_KEY:
                     //Decrement
-                    g_CoolOnThresh[currSensor]=UpdateCoolOn(g_CoolOnThresh[currSensor],g_CoolOffThresh[currSensor],false); //0.5deg Steps
+                    g_CoolOnThresh[currSensor]=TempControllers[currSensor]->UpdateOnTh(false,0);
                 break;
                 default:
                     //Unsupported key
@@ -408,19 +417,17 @@ inline void main_menu()
             switch (tempKey)
             {
                 case SELECT_KEY:
-                    //Load offset calibration value
-                    TempOffsetSensor = g_OffsetSensor[currSensor];
-                    state = st_calib_sensor;
+                    state = st_change_HeatOn;
                     //Write value in EEPROM
                     EEPROM.put(currSensor*EEPROM_BLOCKSIZE+EEPROM_START_ADDR+sizeof(TEMP_DATA_TYPE), g_CoolOffThresh[currSensor]);
                 break;
                 case RIGHT_KEY:
                     //Increment
-                    g_CoolOffThresh[currSensor]=UpdateCoolOff(g_CoolOffThresh[currSensor],g_CoolOnThresh[currSensor],true); //0.5deg Steps
+                    g_CoolOffThresh[currSensor]=TempControllers[currSensor]->UpdateOffTh(true,0);
                 break;
                 case LEFT_KEY:
                     //Decrement
-                    g_CoolOffThresh[currSensor]=UpdateCoolOff(g_CoolOffThresh[currSensor],g_CoolOnThresh[currSensor],false); //0.5deg Steps
+                    g_CoolOffThresh[currSensor]=TempControllers[currSensor]->UpdateOffTh(false,0);
                 break;
                 default:
                     //Unsupported key
@@ -432,6 +439,67 @@ inline void main_menu()
             lcd.print(print_buf);
             //Second row
             PrintTempLCD(g_CoolOffThresh[currSensor],false,&lcd);
+        break;
+        
+        case st_change_HeatOn:
+            g_showtempLCD=-1; //Dont show temperature for any sensor
+            switch (tempKey)
+            {
+                case SELECT_KEY:
+                    state = st_change_HeatOff;
+                    //Write value in EEPROM
+                    EEPROM.put(currSensor*EEPROM_BLOCKSIZE+EEPROM_START_ADDR+sizeof(TEMP_DATA_TYPE)*2, g_HeatOnThresh[currSensor]);
+                break;
+                case RIGHT_KEY:
+                    //Increment
+                    g_HeatOnThresh[currSensor]=TempControllers[currSensor]->UpdateOnTh(true,1);
+                break;
+                case LEFT_KEY:
+                    //Decrement
+                    g_HeatOnThresh[currSensor]=TempControllers[currSensor]->UpdateOnTh(false,1);
+                break;
+                default:
+                    //Unsupported key
+                    // state = st_show_temp;
+                break;
+            }
+            //First row
+            snprintf(print_buf, LCD_WIDTH+1, "HeatOn sensor %d ",currSensor);
+            lcd.setCursor(0,0);   //First row
+            lcd.print(print_buf);
+            //Second row
+            PrintTempLCD(g_HeatOnThresh[currSensor],false,&lcd);
+        break;
+        
+        case st_change_HeatOff:
+            g_showtempLCD=-1; //Dont show temperature for any sensor
+            switch (tempKey)
+            {
+                case SELECT_KEY:
+                    //Load offset calibration value
+                    TempOffsetSensor = g_OffsetSensor[currSensor];
+                    state = st_calib_sensor;
+                    //Write value in EEPROM
+                    EEPROM.put(currSensor*EEPROM_BLOCKSIZE+EEPROM_START_ADDR+sizeof(TEMP_DATA_TYPE)*3, g_HeatOffThresh[currSensor]);
+                break;
+                case RIGHT_KEY:
+                    //Increment
+                    g_HeatOffThresh[currSensor]=TempControllers[currSensor]->UpdateOffTh(true,1);
+                break;
+                case LEFT_KEY:
+                    //Decrement
+                    g_HeatOffThresh[currSensor]=TempControllers[currSensor]->UpdateOffTh(false,1);
+                break;
+                default:
+                    //Unsupported key
+                    // state = st_show_temp;
+                break;
+            }
+            snprintf(print_buf, LCD_WIDTH+1, "HeatOff sensor %d",currSensor);
+            lcd.setCursor(0,0);   //First row
+            lcd.print(print_buf);
+            //Second row
+            PrintTempLCD(g_HeatOffThresh[currSensor],false,&lcd);
         break;
         
         case st_calib_sensor: //For offset calibration
@@ -531,36 +599,11 @@ inline void read_temp_sensors()
             }
             
             //////////////////////////////////////////////////////////////////
-            //Control Cooling/Heating
+            //Control Temperature
             //////////////////////////////////////////////////////////////////
             /////////
-            //Cooling
-            if (g_TempReading[sensor] >= g_CoolOnThresh[sensor])
-            {
-                //If temperature rises above CoolOnThreshold
-                //Turn on cooling
-                SwitchRelay(g_CoolSwitch[sensor], true);
-            }
-            else if (g_TempReading[sensor] <= g_CoolOffThresh[sensor])
-            {
-                //If temperature falls below CoolOffThreshold
-                //Turn off cooling
-                SwitchRelay(g_CoolSwitch[sensor], false);
-            }
-            /////////
-            //Heating
-            if (g_TempReading[sensor] <= g_HeatOnThresh[sensor])
-            {
-                //If temperature falls below HeatOnThreshold
-                //Turn on heating
-                SwitchRelay(g_HeatSwitch[sensor], true);
-            }
-            else if (g_TempReading[sensor] >= g_HeatOffThresh[sensor])
-            {
-                //If temperature rises above HeatOffThreshold
-                //Turn off heating
-                SwitchRelay(g_HeatSwitch[sensor], false);
-            }
+            
+            TempControllers[sensor]->UpdateTemp(g_TempReading[sensor]);
             
             //////////////////////////////////////////////////////////////////
             //Printing

@@ -3,7 +3,7 @@
 ## BRIEF DESCRIPTION 
 ***
 
-This project aims to develop a temperature controller for beer fermenters (8 or more). The controller is based on an Arduino and the DS18B20 digital temperature sensor. It supports setting temperature operating point with hystheresis via an LCD Keypad shield, and support temperature display with additional 7-segment displays for each sensor. The controller will open valves (with relays) carrying cold liquid (water) that will run inside the fermenter through a serpentine coil thus cooling the beer.
+This project aims to develop a temperature controller for beer fermenters (8 or more). The controller is based on an Arduino and the DS18B20 digital temperature sensor. It supports setting temperature operating point with hystheresis via an LCD Keypad shield, and support temperature display with additional 7-segment displays for each sensor. The controller will open valves (with relays) carrying cold liquid (water) that will run inside the fermenter through a serpentine coil thus cooling the beer. The controller also has control for a heating element in case of places with ver low ambient temperature.
 
 Project parts:  
 * *Arduino Mega 2560* or similar (depending on how many fermenters are needed)  
@@ -23,7 +23,7 @@ The current code has the following features:
 * +-0.5deg celsius accuracy from -10deg to +85deg without calibration (Higher accuracy is possible through calibration)
 * Interactive menu to modify sensor/temperature control parameters
 * Monitoring of temperature for each sensor on 7-segment displays, regardless of user input
-* CoolOn/CoolOff thresholds offer hysteresis-like temperature control for each sensor
+* CoolOn/CoolOff and HeatOn/HeatOff thresholds offer hysteresis-like temperature control for each sensor
 * Offset calibration for each sensor, stored in the DS1820's EEPROM (each sensor will store the calibration data)
 * Storage of settings in Arduino's EEPROM
 * Sensor CRC and presence checking (no wrong read-outs)
@@ -46,7 +46,13 @@ Temperature updates every second (actually a bit faster, around 900ms)
 ### Menu navigation
 On the main screen temperature is displayed for the current selected sensor (default sensor 0). Using the *UP/DOWN* arrows selects a different sensor.
 
-While on the main screen, if the *SEL* key is pressed the program will enter configuration mode for the given sensor. On the first configuration screen the *'CoolOn'* threshold can be modified. Use *LEFT/RIGHT* arrows to change the temperature above which the relay for cooling will be activated. Then press *SEL*. The next screen modifies the *'CoolOff'* threshold, also set it with *LEFT/RIGHT* arrows. If the temperature falls below this threshold the MCU will deactivate the respective relay. The next screen is accessed by pressing *SEL* again. This screen allows to modify the offset of the temperature reading of the sensor. This gives the possibility to calibrate the sensor to a known reference temperature. By pressing *SEL* once more, all settings are saved and the program returns to the main screen.
+While on the main screen, if the *SEL* key is pressed the program will enter configuration mode for the given sensor. The first configuration screen the *'CoolOn'* threshold can be modified. Use *LEFT/RIGHT* arrows to change the temperature above which the relay for cooling will be activated. Then press *SEL*. The next screen modifies the *'CoolOff'* threshold, also set it with *LEFT/RIGHT* arrows. If the temperature falls below this threshold the MCU will deactivate the respective relay. The next screen is accessed by pressing *SEL* again.
+
+The next two screens are dedicated to the heating part of the controller. *'HeatOn'* will turn on the heating relay if temperature falls below this threshold. When you are done press *SEL* to continue. *'HeatOff'* will turn off the heating relay when temperature rises above said threshold. Press *SEL* after this to continue to the offset calibration.
+
+This screen allows to modify the offset of the temperature reading of the sensor. This gives the possibility to calibrate the sensor to a known reference temperature. By pressing *SEL* once more, all settings are saved and the program returns to the main screen.
+
+NOTE: If heating and cooling parts of the controller overlap, cooling will take precedence.
 
 ### Pinout
 The pinout for the code can be modified easily in **'fresca.ino'**, look for the line that says:
@@ -54,7 +60,8 @@ The pinout for the code can be modified easily in **'fresca.ino'**, look for the
 // ****** DEFINE PINOUT HERE ****** PINOUT_LINE
 `
 
-Each sensor is connected to a digital I/O.
+Keypad is connected to an analog pin.
+Each sensor is connected to a single digital I/O.
 7-Segment displays CLK pins are connected to a single arduino digital pin.
 
 ### Celsius/Fahrenheit
@@ -68,8 +75,8 @@ Many constants that define program behavior and debugging are defined in *'fresc
 ### Resource usage
 
 **'fresca.ino'** uses on an Arduino Mega 2560 :
-> Sketch uses 10894 bytes (4%) of program storage space. Maximum is 253952 bytes.
-> Global variables use 990 bytes (12%) of dynamic memory, leaving 7202 bytes for local variables. Maximum is 8192 bytes.
+> Sketch uses 12000 bytes (4%) of program storage space. Maximum is 253952 bytes.
+> Global variables use 1122 bytes (13%) of dynamic memory, leaving 7070 bytes for local variables. Maximum is 8192 bytes.
 
 Free memory in runtime is around 6900 bytes
 
@@ -86,13 +93,12 @@ Grab them and install them in your Arduino IDE
 ## Further improvements planned
 ***
 
-* Add heating to the temperature control
 * Support for other keypads
-* Add web server to monitor temperature using a wifi shield
+* Add web server to monitor temperature using a wifi shield (ESP8266 based)
 
 ## Why only one sensor per wire ?
 
-As many of you know it is possible to accommodate many OneWire sensors in a single wire. Even though this represents a significant reduction in pin count, it makes things more complicated for the user. With one sensor per wire, the user can clearly identify what thresholds temperature reading belong to which sensor, and can even interchange sensors and replace them freely. Otherwise there would need to be a ROM matchng mechanism for new/current sensors to respective thresholds. So the setup is easier and there is less confusion, and getting a high pin-count arduino is really cheap.
+As many of you know it is possible to accommodate many OneWire sensors in a single wire. Even though this represents a significant reduction in pin count, it makes things more complicated for the user. With one sensor per wire, the user can clearly identify what thresholds temperature reading belong to which sensor, and can even interchange sensors and replace them freely. Otherwise there would need to be a ROM matching mechanism for new/current sensors to respective thresholds. So the setup is easier and there is less confusion, and getting a high pin-count arduino is really cheap.
 
 ## NOTES
 ***

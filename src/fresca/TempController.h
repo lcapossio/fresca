@@ -21,7 +21,7 @@
 Author: Leonardo Capossio
 Project: 'fresca'
 Description:
-            
+            Header file for TempActuator and TempController classes
             
             
             
@@ -40,6 +40,8 @@ Description:
 
 #ifndef FRESCA_TEMP_CTRL_H
 #define FRESCA_TEMP_CTRL_H
+    
+    //#define RELAY_ACTIVE_HIGH //uncomment for ACTIVE_HIGH relays
     
     ////////////////////////////////////////
     //Arduino specific MACRO
@@ -76,7 +78,7 @@ Description:
             void CheckOffThLimits();
             Temp_type GetOnTh();
             Temp_type GetOffTh();
-            uint8_t GetState();
+            TempActuator_state_type GetState();
             uint8_t GetOutputEnable();
             void EnableOutput();
             void DisableOutput();
@@ -105,8 +107,8 @@ Description:
         public:
             TempController(TempController_type ControllerType, uint8_t *Pins, Temp_type * Thresholds, Temp_type * Limits, Temp_type MinStep);
             void UpdateTemp(Temp_type new_temp);
-            void UpdateOnTh (uint8_t inc_dec, uint8_t Actuator);
-            void UpdateOffTh(uint8_t inc_dec, uint8_t Actuator);
+            Temp_type UpdateOnTh (uint8_t inc_dec, uint8_t Actuator);
+            Temp_type UpdateOffTh(uint8_t inc_dec, uint8_t Actuator);
             
         private:
             TempController_type _ControllerType;

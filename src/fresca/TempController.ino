@@ -21,7 +21,7 @@
 Author: Leonardo Capossio
 Project: 'fresca'
 Description:
-            
+            Definition of TempActuator and TempController classes
             
             
             
@@ -59,6 +59,12 @@ TempActuator<Temp_type>::TempActuator(TempActuator_type ActuatorType,Temp_type O
     _MinStep      = MinStep;
     _state        = TempActuator_state_type::Off;
     _enOutput     = TempActuator_state_type::On; //By default enable output control
+    
+    //Arduino specific
+    pinMode(_Actuator_pin, OUTPUT);
+    SWITCH_OFF(_Actuator_pin); //Switch off output, but don't change the internal state
+    //
+    
     CheckOnThLimits();
     CheckOffThLimits();
 }
@@ -120,7 +126,7 @@ Temp_type TempActuator<Temp_type>::GetOffTh()
 }
 
 template <typename Temp_type>
-uint8_t TempActuator<Temp_type>::GetState()
+TempActuator_state_type TempActuator<Temp_type>::GetState()
 {
     return _state;
 }
@@ -132,8 +138,8 @@ void TempActuator<Temp_type>::ControlTemp(Temp_type temperature)
     if (_ActuatorType == TempActuator_type::Cool)
     {
         //Cooling
-        //Turn on actuator when temperature rises above the on threshold,
-        //and turn it off when the temperature falls below the off threshold
+        //Turn ON actuator when temperature rises above the ON threshold,
+        //and turn it OFF when the temperature falls below the OFF threshold
         if (temperature >= _OnTh)
         {
             SwitchOn();
@@ -146,8 +152,8 @@ void TempActuator<Temp_type>::ControlTemp(Temp_type temperature)
     else
     {
         //Heating
-        //Turn on actuator when temperature falls below the on threshold,
-        //and turn it off when the temperature rises above the off threshold
+        //Turn ON actuator when temperature falls below the ON threshold,
+        //and turn it OFF when the temperature rises above the OFF threshold
         if (temperature <= _OnTh)
         {
             SwitchOn();
@@ -163,7 +169,7 @@ template <typename Temp_type>
 Temp_type TempActuator<Temp_type>::UpdateOnTh(uint8_t inc_dec)
 {
     //Increment/Decrement
-    if (inc_dec)
+    if (inc_dec==true)
     {
         //Increment
         _OnTh+=_MinStep;
@@ -183,7 +189,7 @@ template <typename Temp_type>
 Temp_type TempActuator<Temp_type>::UpdateOffTh(uint8_t inc_dec)
 {
     //Increment/Decrement
-    if (inc_dec)
+    if (inc_dec==true)
     {
         //Increment
         _OffTh+=_MinStep;
@@ -194,7 +200,7 @@ Temp_type TempActuator<Temp_type>::UpdateOffTh(uint8_t inc_dec)
         _OffTh-=_MinStep;
     }
     
-    CheckOnThLimits();
+    CheckOffThLimits();
     
     return _OffTh;
 }
@@ -206,18 +212,6 @@ void TempActuator<Temp_type>::CheckOnThLimits()
     if (_ActuatorType == TempActuator_type::Cool)
     {
         //Cooling type
-        if (_OnTh < _LowerThLimit)
-        {
-            _OnTh = _LowerThLimit;
-        }
-        else if (_OnTh > _OffTh-_MinStep)
-        {
-            _OnTh = _OffTh-_MinStep;
-        }
-    }
-    else
-    {
-        //Heating type
         if (_OnTh > _UpperThLimit)
         {
             _OnTh = _UpperThLimit;
@@ -225,6 +219,18 @@ void TempActuator<Temp_type>::CheckOnThLimits()
         else if (_OnTh < _OffTh+_MinStep)
         {
             _OnTh = _OffTh+_MinStep;
+        }
+    }
+    else
+    {
+        //Heating type
+        if (_OnTh < _LowerThLimit)
+        {
+            _OnTh = _LowerThLimit;
+        }
+        else if (_OnTh > _OffTh-_MinStep)
+        {
+            _OnTh = _OffTh-_MinStep;
         }
     }
 }
@@ -282,16 +288,17 @@ TempController<Temp_type>::TempController(TempController_type ControllerType, ui
         case TempController_type::Cool:
             //Cooling only
             _Actuators[0] = new TempActuator<Temp_type>(TempActuator_type::Cool, Thresholds[0], Thresholds[1], Pins[0], Limits[0], Limits[1], MinStep);
-            _Actuators[1] = nullptr;
+            _Actuators[1] = _Actuators[0]; //In case it is accidentally accessed it won't produce unexpected results
         break;
         case TempController_type::Heat:
             //Heating only
             _Actuators[0] = new TempActuator<Temp_type>(TempActuator_type::Heat, Thresholds[0], Thresholds[1], Pins[0], Limits[0], Limits[1], MinStep);
-            _Actuators[1] = nullptr;
+            _Actuators[1] = _Actuators[0]; //In case it is accidentally accessed it won't produce unexpected results
+        break;
         default:
-            //Error
-            _Actuators[0] = nullptr;
-            _Actuators[1] = nullptr;
+            //ERROR
+            _Actuators[0] = new TempActuator<Temp_type>(TempActuator_type::Cool, Thresholds[0], Thresholds[1], Pins[0], Limits[0], Limits[1], MinStep);
+            _Actuators[1] = _Actuators[0]; //In case it is accidentally accessed it won't produce unexpected results
         break;
     }
 }
@@ -306,7 +313,7 @@ void TempController<Temp_type>::UpdateTemp(Temp_type new_temp)
             //Cooling takes precedence
             
             if (_Actuators[0]->GetState() == TempActuator_state_type::Off)
-                DisableOutput(); //Don't activate the output YET
+                _Actuators[0]->DisableOutput(); //Don't activate the output YET
             
             //Check if output needs to be activated
             _Actuators[0]->UpdateTemp(new_temp);
@@ -336,39 +343,47 @@ void TempController<Temp_type>::UpdateTemp(Temp_type new_temp)
 }
 
 template <typename Temp_type>
-void TempController<Temp_type>::UpdateOnTh(uint8_t inc_dec, uint8_t Actuator)
+Temp_type TempController<Temp_type>::UpdateOnTh(uint8_t inc_dec, uint8_t Actuator)
 {
+    Temp_type newth;
+    
     switch(_ControllerType)
     {
         case TempController_type::Both:
-            if (Actuator > 1)
+            if (Actuator != 0 && Actuator != 1)
             {
-                Actuator=1;
+                Actuator=0;
             }
-            _Actuators[Actuator]->UpdateOnTh(inc_dec);
+            newth = _Actuators[Actuator]->UpdateOnTh(inc_dec);
         break;
         default:
             //Cooling or Heating alone, update temperature
-            _Actuators[0]->UpdateOnTh(inc_dec);
+            newth = _Actuators[0]->UpdateOnTh(inc_dec);
         break;
     }
+    
+    return newth;
 }
 
 template <typename Temp_type>
-void TempController<Temp_type>::UpdateOffTh(uint8_t inc_dec, uint8_t Actuator)
+Temp_type TempController<Temp_type>::UpdateOffTh(uint8_t inc_dec, uint8_t Actuator)
 {
+    Temp_type newth;
+    
     switch(_ControllerType)
     {
         case TempController_type::Both:
-            if (Actuator > 1)
+            if (Actuator != 0 && Actuator != 1)
             {
-                Actuator=1;
+                Actuator=0;
             }
-            _Actuators[Actuator]->UpdateOffTh(inc_dec);
+            newth = _Actuators[Actuator]->UpdateOffTh(inc_dec);
         break;
         default:
             //Cooling or Heating alone, update temperature
-            _Actuators[0]->UpdateOffTh(inc_dec);
+            newth = _Actuators[0]->UpdateOffTh(inc_dec);
         break;
     }
+    
+    return newth;
 }
