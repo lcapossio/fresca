@@ -38,23 +38,13 @@ Description:
 *********************************************************************************************
 */
 
-#ifndef FRESCA_UTILS_H
-#define FRESCA_UTILS_H
-
-    #include <LiquidCrystal.h>
-    #include <DFR_Key.h>
-    #include "fresca.h"
+#ifndef FRESCA_WIFI_AP_H
+#define FRESCA_WIFI_AP_H
 
     ////////////////////////////////////////
-    //Function declarations
-    void delay_noInterrupts(uint16_t millis);                                                       //Delays in milliseconds, even when interrupts are disabled
-    void PrintTempBuf(TEMP_DATA_TYPE temp, bool show_error, char *buf, uint8_t LCD_deg);            //
-    bool PrintTempLCD(TEMP_DATA_TYPE temp, bool show_error, LiquidCrystal *lcd);                    //Print temperature in second row of LCD
-    uint8_t SensorNext(uint8_t currSensor);                                                         //Get next sensor (and wrap around)
-    uint8_t SensorPrev(uint8_t currSensor);                                                         //Get previous sensor (and wrap around)
-    bool SelectKeyPressed(DFR_Key *keypad);                                                         //Returns true if select key is pressed
-    TEMP_DATA_TYPE celsius2fahrenheit(TEMP_DATA_TYPE celsius);                                      //Converts temp from celsius into fahrenheit
-    int  freeRam();                                                                                 //Measure available RAM, for debug only, by Bill Earl, from adafruit.com
+    //CHANGE HERE AP DETAILS!
+    char ssid[] = "ssid-name";     // your network SSID (name)
+    char pass[] = "ap_password";   // your network password
     ////////////////////////////////////////
     
 #endif

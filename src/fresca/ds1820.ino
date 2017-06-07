@@ -29,7 +29,7 @@ Description:
 //Constructor
 DS1820::DS1820(uint8_t pin, HardwareSerial *serial_obj) : OneWire(pin)
 {
-    dbgSerial = serial_obj;
+    _dbgSerial = serial_obj; //Serial object for debugging (must be previously initialized)
     
     return;
 }
@@ -50,7 +50,7 @@ uint8_t DS1820::UpdateTemp(uint8_t chk_crc)
         //If sensor is present, read and update temperature
         skip();                        //SkipROM command, we only have one sensor per wire
         write(CMD_READ_SCRATCHPAD);    //Read Scratchpad
-        if (DBG_DS1820) { dbgSerial->print("Data sensor = "); }
+        if (DBG_DS1820) { _dbgSerial->print("Data sensor = "); }
         
         uint8_t data_zero_cnt=0;
         for (uint8_t i=0; i < 9; i++)
@@ -60,8 +60,8 @@ uint8_t DS1820::UpdateTemp(uint8_t chk_crc)
             if (data[i] == 0) data_zero_cnt++;
             if (DBG_DS1820)
             {
-                dbgSerial->print(" 0x");
-                dbgSerial->print(data[i], HEX);
+                _dbgSerial->print(" 0x");
+                _dbgSerial->print(data[i], HEX);
             }
         }
 
@@ -73,7 +73,7 @@ uint8_t DS1820::UpdateTemp(uint8_t chk_crc)
         {
             //If all bytes are zero, data is wrong, probably no sensor present
             present=false;
-            if (DBG_DS1820) { dbgSerial->print(" --- ERROR, CAN'T FIND SENSOR ***");dbgSerial->println();}
+            if (DBG_DS1820) { _dbgSerial->print(" --- ERROR, CAN'T FIND SENSOR ***");_dbgSerial->println();}
         }
         else
         {
@@ -85,7 +85,7 @@ uint8_t DS1820::UpdateTemp(uint8_t chk_crc)
             if ( crc_err == false )
             {
                 //Everything OK!!! Update temperature and offset
-                if (DBG_DS1820) {dbgSerial->print(" - CRC OK");dbgSerial->println();}
+                if (DBG_DS1820) {_dbgSerial->print(" - CRC OK");_dbgSerial->println();}
                 
                 //Update temperature
                 LowByte      = data[0]; //Temp low byte
@@ -95,7 +95,7 @@ uint8_t DS1820::UpdateTemp(uint8_t chk_crc)
             else
             {
                 //There was a CRC error, don't update temperature
-                if (DBG_DS1820) {dbgSerial->print(" - CRC ERR");dbgSerial->println();}
+                if (DBG_DS1820) {_dbgSerial->print(" - CRC ERR");_dbgSerial->println();}
             }
             
             //Update Offset calibration from DS1820 scratchpad
@@ -106,7 +106,7 @@ uint8_t DS1820::UpdateTemp(uint8_t chk_crc)
     }
     else
     {
-        if (DBG_DS1820) { dbgSerial->print("***CAN'T FIND SENSOR ***");dbgSerial->println();}
+        if (DBG_DS1820) { _dbgSerial->print("***CAN'T FIND SENSOR ***");_dbgSerial->println();}
     }
     
     if ((crc_err==false) && present)

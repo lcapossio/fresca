@@ -57,7 +57,7 @@ Description:
     ////////////////////////////////////////
 
     enum class TempActuator_type       : uint8_t {Heat=0, Cool=1};
-    enum class TempActuator_state_type : uint8_t {Off=0, On=1};
+    enum class TempActuator_state_type : uint8_t {Off=0,  On=1};
     enum class TempController_type     : uint8_t {Heat=0, Cool=1, Both=2};
     
     ////////////////////////////////////////

@@ -37,30 +37,38 @@ void delay_noInterrupts(uint16_t millis)
     for (uint16_t i=0; i < millis;i++)
     {
         delayMicroseconds(1000);
+        yield(); //Allow time for other functions that work in the background
     }
     return;
 }
 
 //Prints temperature in the second row of the LCD
-bool PrintTempLCD(TEMP_DATA_TYPE temp, bool show_error, LiquidCrystal * lcd)
+void PrintTempBuf(TEMP_DATA_TYPE temp, bool show_error, char *buf, uint8_t LCD_deg)
 {
-    // Separate off the whole and fractional portions, since sprintf doesn't support printing floats!!!
-    char print_buf[MAX_BUF_CHARS];
     bool SignBit;
     TEMP_DATA_TYPE Whole, Fract;
     
     if (TEMP_FAHRENHEIT)
     {
-        temp     = celsius2fahrenheit(temp);
+        temp = celsius2fahrenheit(temp);
     }
     SignBit  = (temp < 0) ? true : false;      //test most sig bit
     Whole    = SignBit ? -temp : temp;         //Complement if negative
     Fract    = ((Whole&0xF)*100)>>4;           //Leave only the last 2 decimal fractional digits
     Whole    = Whole>>4;                       //Divide by 16 to get the whole part
+    
+    //0xDF is *deg* in the LCD char set, 0xF8 is in ASCII encoding
+    snprintf(buf, LCD_WIDTH+1, "%c%02u.%02u%c%c %s", SignBit ? '-':'+', Whole, Fract, (LCD_deg != 0) ? 0xDF:0xB0, (TEMP_FAHRENHEIT==0)?'C':'F', show_error ? "  ERR!     " : "          ");
+}
 
+bool PrintTempLCD(TEMP_DATA_TYPE temp, bool show_error, LiquidCrystal * lcd)
+{
+    // Separate off the whole and fractional portions, since sprintf doesn't support printing floats!!!
+    char print_buf[LCD_WIDTH+1];
+
+    PrintTempBuf(temp,show_error,print_buf,1);
+    
     //Print in the second row
-    //0xDF is *deg* in the LCD char set
-    snprintf(print_buf, LCD_WIDTH+1, "%c%02u.%02u\xDF%c %s", SignBit ? '-':'+', Whole, Fract, (TEMP_FAHRENHEIT==0)?'C':'F', show_error ? "  ERR!     " : "          ");
     lcd->setCursor(0,1);
     lcd->print(print_buf);
     

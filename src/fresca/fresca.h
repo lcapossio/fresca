@@ -53,7 +53,7 @@ Description:
     #define CRISTAL_FREQ_MHZ       16.0                     //Arduino operating frequency Floating point in Megahertz
     #define CRISTAL_FREQ_HZ        (CRISTAL_FREQ_MHZ*1e6)   //Arduino operating frequency Floating point in Hertz
     #define TIMER1_PRESCALE        256.0  //Floating point, don't change
-    #define TEMP_FRAC_BITS         4      //Fractional bits for temperature representation
+    #define TEMP_FRAC_BITS         4       //Fractional bits for temperature representation
     #define TEMP_SCALE             (1<<TEMP_FRAC_BITS) //Scaling factor to transform floating point to fixed point
     
     //Define steps and max/min temperature values in deg celsius, user can modify this
@@ -86,8 +86,6 @@ Description:
     //Constants, user can modify this
     #define MAX_NUM_DS1820_SENSORS 8
     #define NUM_DS1820_SENSORS     8       //One sensor per wire, SET TO THE ACTUAL NUMBER OF SENSORS
-    #define NUM_TEMP_COOLERS       8       //Number of cooling actuators (relays)
-    #define NUM_TEMP_HEATERS       8       //Number of heating actuators (relays)
     #define DS1820_CONFIG_REG      0x7F    //12-bit resolution, no more options
     
     #define TEMP_FAHRENHEIT 0            //!=0 temperature is displayed in fahrenheit
@@ -96,7 +94,7 @@ Description:
     #define DEBUG_PERF      0            //!=0 serial debug messages are enabled (Performance and RAM usage)
     #define USE_CRC         1            //!=0 DS1820 CRC check is enabled
     #define MAX_BUF_CHARS  64            //Max. characters for print buffer
-    #define TEMP_POLL_SEC 750            //Temperature polling in milliseconds
+    #define TEMP_POLL_MSEC 750           //Temperature polling in milliseconds
     #define LCD_WIDTH 16                 //LCD horizontal size
     #define LCD_HEIGHT 2                 //LCD vertical size
     #define RELAY_ACTIVE 0               //0: Active LOW relays, 1 active HIGH relays

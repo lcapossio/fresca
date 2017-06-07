@@ -52,6 +52,7 @@ Description:
 #include "ds1820.h"
 #include "utils.h"
 #include "fresca.h"
+#include "wifi_webserver.h"
 
 ////////////////////////////////////////
 // ****** DEFINE PINOUT HERE ****** PINOUT_LINE
@@ -69,13 +70,15 @@ const uint8_t gc_keypad_pins                             = 0;                   
 
 ////////////////////////////////////////
 //Global variables
-uint8_t         g_showtempLCD = 0;                         //Set to the Sensor number you want to display on the LCD (0: sensor0)
-TEMP_DATA_TYPE  g_TempReading[NUM_DS1820_SENSORS]   = {0}; //Last successful temperature reading
-TEMP_DATA_TYPE  g_CoolOnThresh[NUM_DS1820_SENSORS]  = {0};
-TEMP_DATA_TYPE  g_CoolOffThresh[NUM_DS1820_SENSORS] = {0};
-TEMP_DATA_TYPE  g_HeatOnThresh[NUM_DS1820_SENSORS]  = {0};
-TEMP_DATA_TYPE  g_HeatOffThresh[NUM_DS1820_SENSORS] = {0};
-TEMP_DATA_TYPE  g_OffsetSensor[NUM_DS1820_SENSORS]  = {0};
+uint8_t         g_showtempLCD   = 0;                          //Set to the Sensor number you want to display on the LCD (0: sensor0)
+uint8_t         g_wifi_present  = false;                      //Indicates if Wifi shield is present and connected
+uint8_t         g_ds1820_present[NUM_DS1820_SENSORS] = {0};   //
+TEMP_DATA_TYPE  g_TempReading[NUM_DS1820_SENSORS]    = {0};   //Last successful temperature reading
+TEMP_DATA_TYPE  g_CoolOnThresh[NUM_DS1820_SENSORS]   = {0};
+TEMP_DATA_TYPE  g_CoolOffThresh[NUM_DS1820_SENSORS]  = {0};
+TEMP_DATA_TYPE  g_HeatOnThresh[NUM_DS1820_SENSORS]   = {0};
+TEMP_DATA_TYPE  g_HeatOffThresh[NUM_DS1820_SENSORS]  = {0};
+TEMP_DATA_TYPE  g_OffsetSensor[NUM_DS1820_SENSORS]   = {0};
 ////////////////////////////////////////
 
 ////////////////////////////////////////
@@ -86,6 +89,7 @@ LiquidCrystal                    lcd(gc_lcd_pins[0], gc_lcd_pins[1], gc_lcd_pins
 DFR_Key                          keypad(gc_keypad_pins);              //Analog Keypad on the LCD
 TempController<TEMP_DATA_TYPE> * TempControllers[NUM_DS1820_SENSORS]; //Temperature controllers
 ////////////////////////////////////////
+
 
 ////////////////////////////////////////
 //Start main code
@@ -99,12 +103,31 @@ void loop(void)
     TIMSK1 |= (1 << OCIE1A);    // enable timer compare interrupt
     
     Serial.print("***Executing Main Loop...");Serial.println();
-    
+    uint32_t start_millis;
     //MAIN Infinite loop
     MAIN_LOOP:while(true)
     {
+        //
         read_temp_sensors();
-        delay_noInterrupts(TEMP_POLL_SEC); //750ms conversion time for 12 bits
+        //Wait 750 ms before reading temp sensors again (750ms conversion time for 12 bits)
+        if (g_wifi_present==true)
+        {
+            start_millis = millis();
+            do
+            {
+                //Meanwhile run webserver
+                //run webserver completely fails if anything interrupts it, so disable interrupts
+                TIMSK1 &= ~(1 << OCIE1A);   // disable timer compare interrupt
+                run_webserver(g_TempReading,g_ds1820_present);
+                TIMSK1 |= (1 << OCIE1A);    // enable timer compare interrupt
+                delay_noInterrupts(5);      //Don't poll too fast
+            } while (millis()-start_millis < TEMP_POLL_MSEC); //Wait 750 ms before reading temp sensors again (750ms conversion time for 12 bits)
+        }
+        else
+        {
+            //750ms conversion time for 12 bits
+            delay_noInterrupts(TEMP_POLL_MSEC);
+        }
     }
 }
 
@@ -261,6 +284,14 @@ void setup(void)
         }
     }
     Serial.print("Done!");Serial.println();
+    //////////////////////////////////////////////////
+    
+    //////////////////////////////////////////////////
+    #define ENABLE_WEBSERVER 1
+    if (ENABLE_WEBSERVER)
+    {
+        g_wifi_present = setup_webserver();
+    }
     //////////////////////////////////////////////////
     
     //////////////////////////////////////////////////
@@ -569,7 +600,6 @@ inline void main_menu()
 inline void read_temp_sensors()
 {
     uint8_t sensor;
-    uint8_t reading_ok;
     char    print_buf[MAX_BUF_CHARS];
     static uint32_t end_time=0;
     uint32_t start;
@@ -592,11 +622,11 @@ inline void read_temp_sensors()
         //Read temperature
         //////////////////////////////////////////////////////////////////
         //Update temperature variables
-        reading_ok = g_ds1820[sensor]->UpdateTemp(USE_CRC);
+        g_ds1820_present[sensor] = g_ds1820[sensor]->UpdateTemp(USE_CRC);
         //Start temperature conversion again
         g_ds1820[sensor]->StartTemp();
         
-        if (reading_ok == true) //Check if sensor present or CRC error
+        if (g_ds1820_present[sensor] == true) //Check if sensor present or CRC error
         {
             g_TempReading[sensor]  = g_ds1820[sensor]->GetTemp();
             g_OffsetSensor[sensor] = g_ds1820[sensor]->GetOffset();
@@ -651,7 +681,7 @@ inline void read_temp_sensors()
         //LCD printing
         if (g_showtempLCD == sensor)
         {
-            PrintTempLCD(g_TempReading[sensor],reading_ok==false,&lcd);
+            PrintTempLCD(g_TempReading[sensor],g_ds1820_present[sensor]==false,&lcd);
         }
     }
     

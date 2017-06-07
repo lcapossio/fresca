@@ -51,7 +51,7 @@ class DS1820 : OneWire
 {
     private:
   
-        HardwareSerial *dbgSerial;             //Serial object used for debug
+        HardwareSerial *      _dbgSerial;      //Serial object used for debug
         DS1820_TEMP_DATA_TYPE _TempReading;    //Latest temperature reading
         DS1820_TEMP_DATA_TYPE _SensorOffset;   //From TH and TL, latest stored calibration offset
 
