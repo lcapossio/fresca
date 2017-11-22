@@ -84,8 +84,8 @@ Description:
 
     ////////////////////////////////////////
     //Constants, user can modify this
-    #define MAX_NUM_DS1820_SENSORS 8
-    #define NUM_DS1820_SENSORS     8       //One sensor per wire, SET TO THE ACTUAL NUMBER OF SENSORS
+    #define MAX_NUM_TEMP_SENSORS   8
+    #define NUM_SENSORS            8       //One sensor per wire, SET TO THE ACTUAL NUMBER OF SENSORS
     #define NUM_TEMP_COOLERS       8       //Number of cooling actuators (relays)
     #define NUM_TEMP_HEATERS       8       //Number of heating actuators (relays)
     #define DS1820_CONFIG_REG      0x7F    //12-bit resolution, no more options

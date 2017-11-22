@@ -71,7 +71,7 @@ bool PrintTempLCD(TEMP_DATA_TYPE temp, bool show_error, LiquidCrystal * lcd)
 inline uint8_t SensorNext(uint8_t currSensor)
 {
     currSensor += 1;
-    if (currSensor > NUM_DS1820_SENSORS-1)
+    if (currSensor > NUM_SENSORS-1)
     {
         currSensor = 0;
     }
@@ -82,9 +82,9 @@ inline uint8_t SensorNext(uint8_t currSensor)
 inline uint8_t SensorPrev(uint8_t currSensor)
 {
     currSensor -= 1;
-    if (currSensor > NUM_DS1820_SENSORS-1)
+    if (currSensor > NUM_SENSORS-1)
     {
-        currSensor = NUM_DS1820_SENSORS-1;
+        currSensor = NUM_SENSORS-1;
     }
     
     return currSensor;
