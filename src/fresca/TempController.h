@@ -61,7 +61,7 @@ Description:
     enum class TempController_type     : uint8_t {Heat=0, Cool=1, Both=2};
     
     ////////////////////////////////////////
-    template <typename Temp_type> //Temp type has to be a fixed point (integer) type with +,-,< and > operators crearly defined
+    template <typename Temp_type> //Temp type has to be a fixed point (integer) type with +,-,< and > operators clearly defined
     class TempActuator
     {
         public:

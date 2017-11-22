@@ -35,6 +35,7 @@ DS1820::DS1820(uint8_t pin, HardwareSerial *serial_obj) : OneWire(pin)
 }
 
 //Reads the temperature from the sensor and updates offset saved in sensor
+//Returns true on correct reading, false will indicate error (either CRC or otherwise)
 uint8_t DS1820::UpdateTemp(uint8_t chk_crc)
 {
     uint8_t data[9];
