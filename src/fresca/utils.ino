@@ -106,7 +106,7 @@ bool SelectKeyPressed(DFR_Key *keypad)
 }
 
 //Convert celsius to fahrenheit
-//Celsius comes in Q11.4
+//Celsius/Fahrenheit are in Q11.4
 TEMP_DATA_TYPE celsius2fahrenheit(TEMP_DATA_TYPE celsius)
 {
     TEMP_DATA_TYPE fahrenheit;

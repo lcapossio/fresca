@@ -22,6 +22,8 @@ Author: Leonardo Capossio
 Project: 'fresca'
 Description:
 
+  fresca_sensor class manages an array of different types of temperature/humidity sensors
+
 */
 
 #include "fresca_sensor.h"
@@ -29,26 +31,31 @@ Description:
 #include "ds1820.h"
 
 //Constructor
-fresca_sensor::fresca_sensor(uint8_t numSensors, const Sensor_type *sensor_type, const uint8_t *pin, HardwareSerial *serial_obj)
+fresca_sensor::fresca_sensor(uint8_t numSensors, const SensorType_t *sensorType, const uint8_t *pin, HardwareSerial *serial_obj)
 {
     _dbgSerial  = serial_obj;
     _numSensors = numSensors;
     
     for (uint8_t sensor_idx = 0; sensor_idx < numSensors; sensor_idx++)
     {
-        switch (sensor_type[sensor_idx])
+        switch (sensorType[sensor_idx])
         {
             //DHT22
-            case Sensor_type::FRESCA_SENS_DHT22:
+            case SensorType_t::FRESCA_SENS_DHT22:
+                //Create object
                 _sensor[sensor_idx] = new DHT(pin[sensor_idx],DHT22);
+                //Start sensor
+                ((DHT *) _sensor[sensor_idx])->begin();
                 break;
-            case Sensor_type::FRESCA_SENS_DS1820:
+            case SensorType_t::FRESCA_SENS_DS1820:
             default:
+                //Create object
                 _sensor[sensor_idx] = new DS1820(pin[sensor_idx],serial_obj);
+                //Kick start temperature conversion
                 ((DS1820 *) _sensor[sensor_idx])->StartTemp();
                 break;
         }
-        _sensorType[sensor_idx] = sensor_type[sensor_idx]; // Store sensor type in internal variable
+        _sensorType[sensor_idx] = sensorType[sensor_idx]; // Store sensor type in internal variable
     }
     
     return;
@@ -61,17 +68,17 @@ SENS_TEMP_DATA_TYPE fresca_sensor::GetTemp(uint8_t sensor_idx)
     switch (_sensorType[sensor_idx])
     {
         //DHT22
-        case Sensor_type::FRESCA_SENS_DHT22:
+        case SensorType_t::FRESCA_SENS_DHT22:
             float TempReadingDHT22;
             //read data from DHT22
             TempReadingDHT22 = ((DHT *) _sensor[sensor_idx])->readTemperature();
             //Convert to fixed point
             TempReading = (SENS_TEMP_DATA_TYPE) (TempReadingDHT22  * (1<<TEMP_FIX_POS));
-            
-            _sensorStatus[sensor_idx] = SensorStatus_type::FRESCA_SENS_OK;
+            //Set sensor status (DHT22 is always OK, since library doesn't support error conditions)
+            _sensorStatus[sensor_idx] = SensorStatus_t::FRESCA_SENS_OK;
             break;
         //DS1820
-        case Sensor_type::FRESCA_SENS_DS1820:
+        case SensorType_t::FRESCA_SENS_DS1820:
         default:
             uint8_t ds1820_status;
             //Reads the temperature from the sensor and updates offset saved in sensor
@@ -80,15 +87,10 @@ SENS_TEMP_DATA_TYPE fresca_sensor::GetTemp(uint8_t sensor_idx)
             ((DS1820 *) _sensor[sensor_idx])->StartTemp();
             //Will return old temperature if it failed
             TempReading = ((DS1820 *) _sensor[sensor_idx])->GetTemp();
-            if (ds1820_status)
-            {
-              //If there was no error
-              _sensorStatus[sensor_idx] = SensorStatus_type::FRESCA_SENS_OK;
-            }
-            else
-            {
-              _sensorStatus[sensor_idx] = SensorStatus_type::FRESCA_SENS_ERROR;
-            }
+
+            //Set sensor status
+            _sensorStatus[sensor_idx] = (ds1820_status) ? SensorStatus_t::FRESCA_SENS_OK : SensorStatus_t::FRESCA_SENS_ERROR;
+
             break;
     }
     
@@ -102,12 +104,12 @@ SENS_TEMP_DATA_TYPE fresca_sensor::GetTempOffset(uint8_t sensor_idx)
     switch (_sensorType[sensor_idx])
     {
         //DHT22
-        case Sensor_type::FRESCA_SENS_DHT22:
+        case SensorType_t::FRESCA_SENS_DHT22:
             //No support for DHT22 offset yet
-            SensorOffset=0;
+            SensorOffset = 0;
             break;
         //DS1820
-        case Sensor_type::FRESCA_SENS_DS1820:
+        case SensorType_t::FRESCA_SENS_DS1820:
         default:
             SensorOffset = ((DS1820 *) _sensor[sensor_idx])->GetOffset();
             break;
@@ -123,7 +125,7 @@ SENS_HUM_DATA_TYPE  fresca_sensor::GetHumidity(uint8_t sensor_idx) //Get humidit
     switch (_sensorType[sensor_idx])
     {
         //DHT22
-        case Sensor_type::FRESCA_SENS_DHT22:
+        case SensorType_t::FRESCA_SENS_DHT22:
             float DHT_Hum;
             //Read data from DHT22
             DHT_Hum = ((DHT *) _sensor[sensor_idx])->readHumidity();
@@ -131,7 +133,7 @@ SENS_HUM_DATA_TYPE  fresca_sensor::GetHumidity(uint8_t sensor_idx) //Get humidit
             HumReading = (SENS_HUM_DATA_TYPE) (DHT_Hum * (1<<HUMIDITY_FIX_POS));
             break;
         //DS1820
-        case Sensor_type::FRESCA_SENS_DS1820:
+        case SensorType_t::FRESCA_SENS_DS1820:
         default:
             //Humidity reading not supported
             HumReading=0;
@@ -146,11 +148,11 @@ uint8_t fresca_sensor::SetTempOffset(uint8_t sensor_idx, SENS_TEMP_DATA_TYPE off
     switch (_sensorType[sensor_idx])
     {
         //DHT22
-        case Sensor_type::FRESCA_SENS_DHT22:
+        case SensorType_t::FRESCA_SENS_DHT22:
             //No support for DHT22 offset yet
             break;
         //DS1820
-        case Sensor_type::FRESCA_SENS_DS1820:
+        case SensorType_t::FRESCA_SENS_DS1820:
         default:
             //Have to find how to record which config reg is
             ((DS1820 *) _sensor[sensor_idx])->WriteUserBytes(config_reg,offset);
@@ -160,12 +162,12 @@ uint8_t fresca_sensor::SetTempOffset(uint8_t sensor_idx, SENS_TEMP_DATA_TYPE off
     return true;
 }
 
-SensorStatus_type fresca_sensor::GetStatus(uint8_t sensor_idx)
+SensorStatus_t fresca_sensor::GetStatus(uint8_t sensor_idx)
 {
   return _sensorStatus[sensor_idx];
 }
 
-Sensor_type fresca_sensor::GetType(uint8_t sensor_idx)
+SensorType_t fresca_sensor::GetType(uint8_t sensor_idx)
 {
   return _sensorType[sensor_idx];
 }

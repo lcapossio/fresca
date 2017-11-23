@@ -49,53 +49,29 @@ Description:
 #include <DFR_Key.h>
 #include <EEPROM.h>
 #include "TempController.h"
+#include "fresca_pinout.h"
 #include "fresca_sensor.h"
 #include "utils.h"
 #include "fresca.h"
 
 ////////////////////////////////////////
-// ****** DEFINE PINOUT HERE ****** PINOUT_LINE
-//Define pinout for MAXIMUM number of sensors (MAX_NUM_TEMP_SENSORS), if less sensors are actually implemented (NUM_SENSORS), the rest of the pins will not be used or touched at all
-const uint8_t gc_7seg_dio_pins[MAX_NUM_TEMP_SENSORS]   = {7,14,15,16,17,43,44,20};   //All TM1637 DIO are specified here
-const uint8_t gc_7seg_clk_pins                         = {8};                        //One clock for all TM1637 displays
-const uint8_t g_CoolerPins[MAX_NUM_TEMP_SENSORS]       = {9,21,22,23,24,25,26,27};   //Contains pin number for relay
-const uint8_t g_CoolerEn[MAX_NUM_TEMP_SENSORS]         = {1,1,1,1,1,1,1,1};          //Enable for Cooler actuator (otherwise temperature control is not implemented)
-const uint8_t g_HeaterPins[MAX_NUM_TEMP_SENSORS]       = {35,36,37,38,39,40,41,42};  //Contains pin number for relay
-const uint8_t g_HeaterEn[MAX_NUM_TEMP_SENSORS]         = {1,1,1,1,1,1,1,1};          //Enable for Heater actuator (otherwise temperature control is not implemented)
-const uint8_t gc_lcd_pins[6]                           = {12, 11, 5, 4, 3, 2};       //LCD 16x2 based on the Hitachi HD44780 controller (rs, enable, d4, d5, d6, d7)
-const uint8_t gc_keypad_pins                           = 0;                          //Analog Keypad on the LCD PCB (has to be an analog pin)
-const uint8_t gc_temp_sens_pins[MAX_NUM_TEMP_SENSORS]  = {6,28,29,30,31,32,33,34};   //Temperature sensors pins (one sensor per wire)
-const Sensor_type gc_temp_sens_type[MAX_NUM_TEMP_SENSORS]  = {Sensor_type::FRESCA_SENS_DS1820,
-                                                              Sensor_type::FRESCA_SENS_DS1820,
-                                                              Sensor_type::FRESCA_SENS_DS1820,
-                                                              Sensor_type::FRESCA_SENS_DS1820,
-                                                              Sensor_type::FRESCA_SENS_DS1820,
-                                                              Sensor_type::FRESCA_SENS_DS1820,
-                                                              Sensor_type::FRESCA_SENS_DS1820,
-                                                              Sensor_type::FRESCA_SENS_DS1820
-                                                             };   //Temperature sensors: DS18B20 or DHT22
-
-
-////////////////////////////////////////
-
-////////////////////////////////////////
 //Global variables
-uint8_t         g_showtempLCD = 0;                         //Set to the Sensor number you want to display on the LCD (0: sensor0)
-TEMP_DATA_TYPE  g_TempReading[NUM_SENSORS]   = {0}; //Last successful temperature reading
-TEMP_DATA_TYPE  g_CoolOnThresh[NUM_SENSORS]  = {0};
-TEMP_DATA_TYPE  g_CoolOffThresh[NUM_SENSORS] = {0};
-TEMP_DATA_TYPE  g_HeatOnThresh[NUM_SENSORS]  = {0};
-TEMP_DATA_TYPE  g_HeatOffThresh[NUM_SENSORS] = {0};
-TEMP_DATA_TYPE  g_OffsetSensor[NUM_SENSORS]  = {0};
+static uint8_t         g_showtempLCD = 0;                  //Set to the Sensor number you want to display on the LCD (0: sensor0)
+static TEMP_DATA_TYPE  g_TempReading[NUM_SENSORS]   = {0}; //Last successful temperature reading for respective sensor
+static TEMP_DATA_TYPE  g_CoolOnThresh[NUM_SENSORS]  = {0};
+static TEMP_DATA_TYPE  g_CoolOffThresh[NUM_SENSORS] = {0};
+static TEMP_DATA_TYPE  g_HeatOnThresh[NUM_SENSORS]  = {0};
+static TEMP_DATA_TYPE  g_HeatOffThresh[NUM_SENSORS] = {0};
+static TEMP_DATA_TYPE  g_OffsetSensor[NUM_SENSORS]  = {0};
 ////////////////////////////////////////
 
 ////////////////////////////////////////
 //Define objects
-TM1637Display                  * g_disp7seg[NUM_SENSORS];      //7segment displays
-fresca_sensor                  * g_fresca_sensor;              //Fresca sensor class (contains the pointer to all sensors in the system)
-LiquidCrystal                    lcd(gc_lcd_pins[0], gc_lcd_pins[1], gc_lcd_pins[2], gc_lcd_pins[3], gc_lcd_pins[4], gc_lcd_pins[5]); //(rs, enable, d4, d5, d6, d7) //LCD 16x2 based on the Hitachi HD44780 controller
-DFR_Key                          keypad(gc_keypad_pins);              //Analog Keypad on the LCD
-TempController<TEMP_DATA_TYPE> * TempControllers[NUM_SENSORS]; //Temperature controllers
+static TM1637Display                  * g_disp7seg[NUM_SENSORS];      //7segment displays
+static fresca_sensor                  * g_fresca_sensor;              //Fresca sensor class (contains the pointer to all sensors in the system)
+static LiquidCrystal                    lcd(gc_lcd_pins[0], gc_lcd_pins[1], gc_lcd_pins[2], gc_lcd_pins[3], gc_lcd_pins[4], gc_lcd_pins[5]); //(rs, enable, d4, d5, d6, d7) //LCD 16x2 based on the Hitachi HD44780 controller
+static DFR_Key                          keypad(gc_keypad_pins);       //Analog Keypad on the LCD
+static TempController<TEMP_DATA_TYPE> * TempControllers[NUM_SENSORS]; //Temperature controllers
 ////////////////////////////////////////
 
 ////////////////////////////////////////
@@ -104,7 +80,7 @@ TempController<TEMP_DATA_TYPE> * TempControllers[NUM_SENSORS]; //Temperature con
 
 void loop(void)
 {
-    lcd.clear();                //Wipe the screen
+    lcd.clear();                // Wipe the screen
     interrupts();               // enable all interrupts
     SET_TIMER1(TIMER_20MS);     // Set timer
     TIMSK1 |= (1 << OCIE1A);    // enable timer compare interrupt
@@ -254,8 +230,10 @@ void setup(void)
         limits[0]=MAX_TEMP;limits[1]=MIN_TEMP;
         limits[2]=MAX_TEMP;limits[3]=MIN_TEMP;
         if (g_CoolerEn[i] && g_HeaterEn[i])
+        {
             //Both cooling and heating
             TempControllers[i] = new TempController<TEMP_DATA_TYPE>(TempController_type::Both, pins, thresholds, limits, THRESHOLD_STEP);
+        }
         else if (g_CoolerEn[i])
         {
             //Just cooling
@@ -601,18 +579,12 @@ inline void read_temp_sensors()
         //Read respective sensor
         TEMP_DATA_TYPE TempReading;
         
-        TempReading = g_fresca_sensor->GetTemp(sensor);
-        if (g_fresca_sensor->GetStatus(sensor) == SensorStatus_type::FRESCA_SENS_OK)
-        {
-          reading_ok = true;
-        }
-        else
-        {
-          reading_ok = false;
-        }
+        TempReading =  g_fresca_sensor->GetTemp(sensor);
+        reading_ok  = (g_fresca_sensor->GetStatus(sensor) == SensorStatus_t::FRESCA_SENS_OK) ? true : false;
         
         if (reading_ok == true) //Check if sensor present or CRC error
         {
+            //If reading was good, update internal variables
             g_TempReading[sensor]  = TempReading;
             g_OffsetSensor[sensor] = g_fresca_sensor->GetTempOffset(sensor);
             
@@ -632,6 +604,7 @@ inline void read_temp_sensors()
             //////////////////////////////////////////////////////////////////
             /////////
             
+            //Call temperature controller class to update its variables and update actuator's state
             TempControllers[sensor]->UpdateTemp(g_TempReading[sensor]);
             
             //////////////////////////////////////////////////////////////////

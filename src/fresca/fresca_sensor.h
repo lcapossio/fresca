@@ -27,6 +27,7 @@ Description:
 #ifndef FRESCA_SENS_H
 #define FRESCA_SENS_H
 
+#include "fresca.h"
 
 typedef int16_t SENS_TEMP_DATA_TYPE; //Data type for temperature in fixed point format S12.4 (1 sign bit, 11 integer bits and 4 fractional bits)
 typedef int16_t SENS_HUM_DATA_TYPE;  //Data type for humidity in fixed point format S12.4 (1 sign bit, 11 integer bits and 4 fractional bits)
@@ -37,27 +38,28 @@ typedef int16_t SENS_HUM_DATA_TYPE;  //Data type for humidity in fixed point for
 #define DBG_SENS false //Don't debug by default
 #endif
 
-#define FRESCA_MAX_SENSORS 16
+#define MAX_SENSORS MAX_NUM_TEMP_SENSORS
 
 #define TEMP_FIX_POS     4    //Position of the fixed point
-#define HUMIDITY_FIX_POS 8
+#define HUMIDITY_FIX_POS 4    //Position of the fixed point
 
-enum class Sensor_type        : uint8_t {FRESCA_SENS_DS1820=0, FRESCA_SENS_DHT22=1};
-enum class SensorStatus_type  : uint8_t {FRESCA_SENS_OK=0, FRESCA_SENS_ERROR=1, FRESCA_SENS_CRC_ERROR=2};
+enum class SensorType_t       : uint8_t {FRESCA_SENS_DS1820=0, FRESCA_SENS_DHT22=1};
+enum class SensorStatus_t     : uint8_t {FRESCA_SENS_OK=0, FRESCA_SENS_ERROR=1, FRESCA_SENS_CRC_ERROR=2};
 
 //fresca_sensor class
 class fresca_sensor
 {
     private:
-        HardwareSerial *_dbgSerial;         //Serial object used for debug
-        void *_sensor[FRESCA_MAX_SENSORS];                    //Sensor class pointer array
-        Sensor_type _sensorType[FRESCA_MAX_SENSORS];          //Type of sensor (DS1820 or DHT22)
-        SensorStatus_type _sensorStatus[FRESCA_MAX_SENSORS];  //Type of sensor (DS1820 or DHT22)
-        uint8_t _numSensors;               //
+    
+        HardwareSerial *_dbgSerial;                   //Serial object used for debug
+        void *          _sensor[MAX_SENSORS];         //Sensor class pointer array
+        SensorType_t    _sensorType[MAX_SENSORS];     //Type of sensor (DS1820 or DHT22)
+        SensorStatus_t  _sensorStatus[MAX_SENSORS];   //Type of sensor (DS1820 or DHT22)
+        uint8_t         _numSensors;                  //
 
     public:
 
-        fresca_sensor(uint8_t numSensors, const Sensor_type *sensor_type, const uint8_t *pin, HardwareSerial *serial_obj=NULL); //Constructor
+        fresca_sensor(uint8_t numSensors, const SensorType_t *sensorType, const uint8_t *pin, HardwareSerial *serial_obj=NULL); //Constructor
 
         SENS_HUM_DATA_TYPE  GetHumidity(uint8_t sensor_idx); //Get humidity
         SENS_TEMP_DATA_TYPE GetTemp(uint8_t sensor_idx);
@@ -65,8 +67,8 @@ class fresca_sensor
         uint8_t             SetTempOffset(uint8_t sensor_idx, SENS_TEMP_DATA_TYPE offset, uint8_t config_reg);
         SENS_TEMP_DATA_TYPE SetSensConfig(uint8_t sensor_idx, uint8_t config);
         
-        SensorStatus_type   GetStatus(uint8_t sensor_idx);
-        Sensor_type         GetType(uint8_t sensor_idx);
+        SensorStatus_t      GetStatus(uint8_t sensor_idx);
+        SensorType_t        GetType(uint8_t sensor_idx);
 };
 
 #endif
