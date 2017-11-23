@@ -56,8 +56,10 @@ Description:
 
 ////////////////////////////////////////
 //Global variables
-static uint8_t         g_showtempLCD = 0;                  //Set to the Sensor number you want to display on the LCD (0: sensor0)
+static uint8_t         g_showSensLCD = 0;                  //Set to the Sensor number you want to display on the LCD (0: sensor0)
+static uint8_t         g_showTempHumLCD[NUM_SENSORS]= {0}; //0: display temperature, 1: display humidity (for respective sensor)
 static TEMP_DATA_TYPE  g_TempReading[NUM_SENSORS]   = {0}; //Last successful temperature reading for respective sensor
+static HUM_DATA_TYPE   g_HumReading[NUM_SENSORS]    = {0}; //Last successful humidity reading for respective sensor
 static TEMP_DATA_TYPE  g_CoolOnThresh[NUM_SENSORS]  = {0};
 static TEMP_DATA_TYPE  g_CoolOffThresh[NUM_SENSORS] = {0};
 static TEMP_DATA_TYPE  g_HeatOnThresh[NUM_SENSORS]  = {0};
@@ -126,7 +128,7 @@ void setup(void)
     //////////////////////////////////////////////////
     //Initialize Displays
     Serial.print("Initializing 7-segment displays...");
-    for (i = 0; i < NUM_SENSORS; i++)
+    for (i = 0; i < NUM_7SEG; i++)
     {
         //Create object
         g_disp7seg[i] = new TM1637Display(gc_7seg_clk_pins,gc_7seg_dio_pins[i]);
@@ -136,13 +138,13 @@ void setup(void)
     }
     //Blink them
     delay_noInterrupts(400);
-    for (i = 0; i < NUM_SENSORS; i++)
+    for (i = 0; i < NUM_7SEG; i++)
     {
         g_disp7seg[i]->setBrightness(0x00,false);//Turn-off
         g_disp7seg[i]->showNumberDec(1305,true); //Write the number again to turn off
     }
     delay_noInterrupts(400);
-    for (i = 0; i < NUM_SENSORS; i++)
+    for (i = 0; i < NUM_7SEG; i++)
     {
         g_disp7seg[i]->setBrightness(0x0f,true); //Turn-on again (end blinking)
         g_disp7seg[i]->showNumberDec(1305,true);
@@ -166,7 +168,7 @@ void setup(void)
     Serial.print("Done!");Serial.println();
     //////////////////////////////////////////////////
     
-    g_showtempLCD=0; //Show temperature for sensor0
+    g_showSensLCD=0; //Show temperature for sensor0
     
     //////////////////////////////////////////////////
     //Recall EEPROM values
@@ -370,11 +372,32 @@ inline void main_menu()
                     PrintTempLCD(g_TempReading[currSensor],false,&lcd);
                 break;
                 
+                
+                case RIGHT_KEY:
+                case LEFT_KEY:
+                    lcd.clear(); //Wipe the screen
+                    if (g_showTempHumLCD[currSensor]==0)
+                    {
+                      if (g_fresca_sensor->GetHumiditySupport(currSensor)) //Check for humidity support
+                      {
+                        //Switch to displaying humidity for this sensor
+                        PrintHumidityLCD(g_HumReading[currSensor],false,&lcd);
+                        g_showTempHumLCD[currSensor] = 1;
+                      }
+                    }
+                    else
+                    {
+                      //Switch to displaying temperature for this sensor
+                      PrintTempLCD(g_TempReading[currSensor],false,&lcd);
+                      g_showTempHumLCD[currSensor] = 0;
+                    }
+                break;
+                
                 default:
                     // state = st_change_CoolOn;
                 break;
             }
-            g_showtempLCD=currSensor;
+            g_showSensLCD=currSensor;
             //Print first row only
             snprintf(print_buf, LCD_WIDTH+1, "Temp sensor %d         ",currSensor);
             lcd.setCursor(0,0);
@@ -382,7 +405,7 @@ inline void main_menu()
         break;
         
         case st_change_CoolOn:
-            g_showtempLCD=-1; //Dont show temperature for any sensor
+            g_showSensLCD=-1; //Dont show temperature for any sensor
             switch (tempKey)
             {
                 case SELECT_KEY:
@@ -412,7 +435,7 @@ inline void main_menu()
         break;
     
         case st_change_CoolOff:
-            g_showtempLCD=-1; //Dont show temperature for any sensor
+            g_showSensLCD=-1; //Dont show temperature for any sensor
             switch (tempKey)
             {
                 case SELECT_KEY:
@@ -441,7 +464,7 @@ inline void main_menu()
         break;
         
         case st_change_HeatOn:
-            g_showtempLCD=-1; //Dont show temperature for any sensor
+            g_showSensLCD=-1; //Dont show temperature for any sensor
             switch (tempKey)
             {
                 case SELECT_KEY:
@@ -471,7 +494,7 @@ inline void main_menu()
         break;
         
         case st_change_HeatOff:
-            g_showtempLCD=-1; //Dont show temperature for any sensor
+            g_showSensLCD=-1; //Dont show temperature for any sensor
             switch (tempKey)
             {
                 case SELECT_KEY:
@@ -502,7 +525,7 @@ inline void main_menu()
         break;
         
         case st_calib_sensor: //For offset calibration
-            g_showtempLCD=-1; //Dont show temperature for any sensor
+            g_showSensLCD=-1; //Dont show temperature for any sensor
             switch (tempKey)
             {
                 case SELECT_KEY:
@@ -574,13 +597,19 @@ inline void read_temp_sensors()
     for (sensor=0;sensor<NUM_SENSORS;sensor++)
     {
         //////////////////////////////////////////////////////////////////
-        //Read temperature
+        //Read temperature (and humidity if supported)
         //////////////////////////////////////////////////////////////////
         //Read respective sensor
         TEMP_DATA_TYPE TempReading;
         
         TempReading =  g_fresca_sensor->GetTemp(sensor);
         reading_ok  = (g_fresca_sensor->GetStatus(sensor) == SensorStatus_t::FRESCA_SENS_OK) ? true : false;
+        
+        if (g_fresca_sensor->GetHumiditySupport(sensor))
+        {
+          //Humidity is supported
+          g_HumReading[sensor] = g_fresca_sensor->GetHumidity(sensor);
+        }
         
         if (reading_ok == true) //Check if sensor present or CRC error
         {
@@ -613,33 +642,39 @@ inline void read_temp_sensors()
 
             bool SignBit;
             
-            ///////////////////
-            //7-segment display
-            int32_t DispTemp32;
-            SignBit    = (g_TempReading[sensor] < 0) ? true : false;                     //test most sig bit
-            if (TEMP_FAHRENHEIT==0)
+            if (sensor < NUM_7SEG) //If 7segment display for this sensor exists
             {
-                //Format to display in 4 7-segment chars (multiply by 100, then remove fractional bits)
-                //Celsius
-                DispTemp32 = ( ( (int32_t) (g_TempReading[sensor]) ) * 100 ) >> 4;           //Promote to 32-bits for the 7-seg display
-                DispTemp32 = SignBit ? -DispTemp32 : DispTemp32;                             //Complement if negative
-                g_disp7seg[sensor]->showNumberDecEx((unsigned)DispTemp32, 0xFF, true, 4, 0);
-            }
-            else
-            {
-                //Format to display in 4 7-segment chars (multiply by 10, then remove fractional bits)
-                //Fahrenheit
-                DispTemp32 = ( ( (int32_t) (celsius2fahrenheit(g_TempReading[sensor])) ) * 10 ) >> 4;                 //Promote to 32-bits for the 7-seg display
-                DispTemp32 = SignBit ? -DispTemp32 : DispTemp32;                             //Complement if negative
-                g_disp7seg[sensor]->showNumberDecEx((unsigned)DispTemp32, 0x00, true, 4, 0);
+              ///////////////////
+              //7-segment display
+              int32_t DispTemp32;
+              SignBit    = (g_TempReading[sensor] < 0) ? true : false;                     //test most sig bit
+              if (TEMP_FAHRENHEIT==0)
+              {
+                  //Format to display in 4 7-segment chars (multiply by 100, then remove fractional bits)
+                  //Celsius
+                  DispTemp32 = ( ( (int32_t) (g_TempReading[sensor]) ) * 100 ) >> 4;           //Promote to 32-bits for the 7-seg display
+                  DispTemp32 = SignBit ? -DispTemp32 : DispTemp32;                             //Complement if negative
+                  g_disp7seg[sensor]->showNumberDecEx((unsigned)DispTemp32, 0xFF, true, 4, 0);
+              }
+              else
+              {
+                  //Format to display in 4 7-segment chars (multiply by 10, then remove fractional bits)
+                  //Fahrenheit
+                  DispTemp32 = ( ( (int32_t) (celsius2fahrenheit(g_TempReading[sensor])) ) * 10 ) >> 4;                 //Promote to 32-bits for the 7-seg display
+                  DispTemp32 = SignBit ? -DispTemp32 : DispTemp32;                             //Complement if negative
+                  g_disp7seg[sensor]->showNumberDecEx((unsigned)DispTemp32, 0x00, true, 4, 0);
+              }
             }
         }
         
         //////////////
         //LCD printing
-        if (g_showtempLCD == sensor)
+        if (g_showSensLCD == sensor)
         {
-            PrintTempLCD(g_TempReading[sensor],reading_ok==false,&lcd);
+            if (g_showTempHumLCD[sensor]==0) //0: display temperature, 1: display humidity
+              PrintTempLCD(g_TempReading[sensor],reading_ok==false,&lcd);
+            else
+              PrintHumidityLCD(g_HumReading[sensor],reading_ok==false,&lcd);
         }
     }
     

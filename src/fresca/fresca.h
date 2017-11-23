@@ -38,6 +38,7 @@ Description:
 #include <stdint.h>
 
     typedef int16_t TEMP_DATA_TYPE;
+    typedef int16_t HUM_DATA_TYPE;
 
     ////////////////////////////////////////
     //MACROS
@@ -56,6 +57,7 @@ Description:
     #define CRISTAL_FREQ_HZ        (CRISTAL_FREQ_MHZ*1e6)   //Arduino operating frequency Floating point in Hertz
     #define TIMER1_PRESCALE        256.0                    //Floating point, don't change
     #define TEMP_FRAC_BITS         4                        //Fractional bits for temperature representation
+    #define HUM_FRAC_BITS         4                         //Fractional bits for humidity representation
     #define TEMP_SCALE             (1<<TEMP_FRAC_BITS)      //Scaling factor to transform floating point to fixed point
     
     //Define steps and max/min temperature values in deg celsius, user can modify this
@@ -88,8 +90,9 @@ Description:
     //Constants, user can modify this
     #define MAX_NUM_TEMP_SENSORS   8
     #define NUM_SENSORS            8            //One sensor per wire, SET TO THE ACTUAL NUMBER OF SENSORS
-    #define NUM_TEMP_COOLERS       NUM_SENSORS  //Number of cooling actuators (relays)
-    #define NUM_TEMP_HEATERS       NUM_SENSORS  //Number of heating actuators (relays)
+    #define NUM_7SEG               NUM_SENSORS  //Number of 7 segment displays (<=NUM_SENSORS)
+    #define NUM_TEMP_COOLERS       NUM_SENSORS  //Number of cooling actuators (relays) (<=NUM_SENSORS)
+    #define NUM_TEMP_HEATERS       NUM_SENSORS  //Number of heating actuators (relays) (<=NUM_SENSORS)
     #define DS1820_CONFIG_REG      0x7F         //12-bit resolution, no more options
     
     //Debug

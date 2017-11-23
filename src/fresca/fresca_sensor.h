@@ -67,6 +67,7 @@ class fresca_sensor
         uint8_t             SetTempOffset(uint8_t sensor_idx, SENS_TEMP_DATA_TYPE offset, uint8_t config_reg);
         SENS_TEMP_DATA_TYPE SetSensConfig(uint8_t sensor_idx, uint8_t config);
         
+        uint8_t             GetHumiditySupport(uint8_t sensor_idx);
         SensorStatus_t      GetStatus(uint8_t sensor_idx);
         SensorType_t        GetType(uint8_t sensor_idx);
 };

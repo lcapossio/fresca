@@ -162,6 +162,26 @@ uint8_t fresca_sensor::SetTempOffset(uint8_t sensor_idx, SENS_TEMP_DATA_TYPE off
     return true;
 }
 
+uint8_t fresca_sensor::GetHumiditySupport(uint8_t sensor_idx)
+{
+    switch (_sensorType[sensor_idx])
+    {
+        //DHT22
+        case SensorType_t::FRESCA_SENS_DHT22:
+            //Supports humidity
+            return true;
+            break;
+        //DS1820
+        case SensorType_t::FRESCA_SENS_DS1820:
+        default:
+            //No humidity support
+            return false;
+            break;
+    }
+    
+    return false;
+}
+
 SensorStatus_t fresca_sensor::GetStatus(uint8_t sensor_idx)
 {
   return _sensorStatus[sensor_idx];
