@@ -38,17 +38,15 @@ Description:
 *********************************************************************************************
 */
 
-#include "WiFiEsp.h"
+#include "WiFiEsp.h" //Actual WiFi driver library
 #include "wifi_webserver.h"
-#include "wifi_ap.h"
+#include "wifi_ap.h" //Where the SSID and the password are set
 
 #include "fresca.h"
-#include "utils.h"
 
 
-#define HAVE_HWSERIAL1
 
-// Emulate Serial1 on pins 6/7 if not present
+// Emulate Serial1 on pins RX19,TX18 if not present
 #ifndef HAVE_HWSERIAL1
 #include "SoftwareSerial.h"
 SoftwareSerial Serial1(19, 18); // RX, TX
@@ -158,8 +156,10 @@ uint8_t sendATcommand(char* ATcommand, char* expected_answer, uint16_t timeout)
 
 
 
-int status = WL_IDLE_STATUS;     // the Wifi radio's status
-int reqCount = 0;                // number of requests received
+static char * g_currSSID = ssid;
+static char g_currIPADDR[16];
+static int  g_status = WL_NO_SHIELD;     // the Wifi radio's status
+static int  reqCount = 0;                // number of requests received
 
 WiFiEspServer g_server(80);
 
@@ -167,7 +167,6 @@ WiFiEspServer g_server(80);
 uint8_t setup_webserver()
 {
     // initialize serial for debugging
-    // initialize serial for ESP module
     // Serial1.begin(115200);
     // sendATcommand("AT+RST","ready",3000);
     // sendATcommand("AT+GMR","OK",3000);
@@ -179,20 +178,18 @@ uint8_t setup_webserver()
     // while (Serial1.available()) Serial1.read();
     // Serial1.flush();         // wait for send buffer to empty
     // Serial1.end();           // close serial
-    Serial1.begin(9600);
     // while (Serial1.available()) Serial1.read();
     // Serial1.flush();         // wait for send buffer to empty
+    // initialize serial for ESP module
+    Serial1.begin(9600);
     
+    //Test some commands
     sendATcommand("AT+GMR","OK",3000);
     sendATcommand("AT+UART_CUR?","OK",3000);
-    // sendATcommand("AT+GMR","OK",3000);
     // sendATcommand("AT+UART_DEF=9600,8,1,0,0","",3000);
     
     // initialize ESP module
     WiFi.init(&Serial1);
-    
-    // sendATcommand("AT+GMR","OK",3000);
-    // sendATcommand("AT+UART_CUR?","OK",3000);
 
     // check for the presence of the shield
     if (WiFi.status() == WL_NO_SHIELD) {
@@ -200,16 +197,29 @@ uint8_t setup_webserver()
         return false;
     }
 
+    uint8_t retries=0;
     // attempt to connect to WiFi network
-    while ( status != WL_CONNECTED) {
+    while ( (g_status != WL_CONNECTED) && (retries < 3) ) {
         Serial.print("Attempting to connect to WPA SSID: ");
         Serial.println(ssid);
         // Connect to WPA/WPA2 network
-        status = WiFi.begin(ssid, pass);
+        g_status = WiFi.begin(ssid, pass);
+        retries++;
     }
     
+    if (g_status != WL_CONNECTED)
+    {
+        Serial.println("***ERROR: Failed connecting to the network!!!");
+        return false;
+    }
+    
+    //Connnected and happy
     Serial.println("You're connected to the network");
     printWifiStatus();
+    
+    IPAddress ip;
+    ip=WiFi.localIP();
+    snprintf(g_currIPADDR,16,"%d.%d.%d.%d",ip[0],ip[1],ip[2],ip[3]);
 
     // start the web server on port 80
     g_server.begin();
@@ -241,15 +251,28 @@ void run_webserver(TEMP_DATA_TYPE *temp, uint8_t *sensor_present)//, Cool)
 
         send_response=false;
         
-        //Check if it is an HTTP get request, otherwise just quit
-        client.setTimeout(200);
+        //Check if it is an HTTP GET request, otherwise just quit
+        client.setTimeout(500);
         if (client.find("GET"))
         {
-            send_response=true;
+            if (client.find("HTTP"))
+            {
+                send_response=true; //We received HTTP GET request
+            }
+            else
+            {
+                Serial.println("***Bad GET request*");
+            }
+        }
+        else
+        {
+            Serial.println("***Not a GET request*");
         }
         
         if (send_response)
         {
+            client.setTimeout(3000);
+            client.find("\r\n\r\n"); //Wait for HTTP GET request to finish (with a blank line)
             
             Serial.println("*Sending response");
             // if you've gotten to the end of the line (received a newline
@@ -291,7 +314,7 @@ void run_webserver(TEMP_DATA_TYPE *temp, uint8_t *sensor_present)//, Cool)
         
         // close the connection:
 
-        client.flush();
+        client.flush(); //Flush any remaining data
         client.stop();
 
         Serial.println("*Client disconnected");
@@ -312,4 +335,19 @@ void printWifiStatus()
     IPAddress ip = WiFi.localIP();
     Serial.print("IP Address: ");
     Serial.println(ip);
+}
+
+inline int GetStatus()
+{
+    return g_status;
+}
+
+inline char* GetSSID()
+{
+    return g_currSSID;
+}
+
+inline char* GetIPAddr()
+{
+    return g_currIPADDR;
 }

@@ -326,7 +326,7 @@ ISR(TIMER1_COMPA_vect)
 //Poll keys, main state machine
 inline void main_menu()
 {
-    enum state_type {st_show_temp,st_change_CoolOn,st_change_CoolOff,st_change_HeatOn,st_change_HeatOff,st_calib_sensor}; //State machine states
+    enum state_type {st_show_temp,st_change_CoolOn,st_change_CoolOff,st_change_HeatOn,st_change_HeatOff,st_calib_sensor,st_webserver_info}; //State machine states
     char print_buf[MAX_BUF_CHARS];
     DFR_Key_type tempKey            = NO_KEY;
     static DFR_Key_type  lastKey    = NO_KEY;
@@ -411,9 +411,15 @@ inline void main_menu()
                 break;
                 
                 case DOWN_KEY:
-                    currSensor = SensorPrev(currSensor);
-                    lcd.clear(); //Wipe the screen
-                    PrintTempLCD(g_TempReading[currSensor],false,&lcd);
+                    if (g_wifi_present)
+                    {
+                        state = st_webserver_info;
+                    }
+                    else
+                    {
+                        currSensor = SensorPrev(currSensor);
+                        PrintTempLCD(g_TempReading[currSensor],false,&lcd);
+                    }
                 break;
                 
                 default:
@@ -586,6 +592,34 @@ inline void main_menu()
             lcd.print(print_buf);
             //Second row
             PrintTempLCD(TempOffsetSensor,false,&lcd);
+        break;
+        
+        case st_webserver_info:
+            g_showtempLCD=-1; //Dont show temperature for any sensor
+            switch (tempKey)
+            {
+                case SELECT_KEY:
+                case RIGHT_KEY:
+                case LEFT_KEY:
+                case UP_KEY:
+                case DOWN_KEY:
+                    state = st_show_temp;
+                break;
+                default:
+                    //Unsupported key
+                    // state = st_show_temp;
+                break;
+            }
+            lcd.clear();
+            //Print on LCD
+            //First row
+            lcd.setCursor(0,0);   //First row
+            snprintf(print_buf, LCD_WIDTH+1, "%s",GetSSID());
+            lcd.print(print_buf);
+            //Second row
+            lcd.setCursor(0,1);
+            snprintf(print_buf, LCD_WIDTH+1, "%s",GetIPAddr());
+            lcd.print(print_buf);
         break;
         
         default:

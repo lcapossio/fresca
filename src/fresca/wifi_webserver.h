@@ -40,13 +40,16 @@ Description:
 
 #ifndef FRESCA_WIFI_WEBSERVER_H
 #define FRESCA_WIFI_WEBSERVER_H
-
-    #include "fresca.h"
-
+    
+    #define HAVE_HWSERIAL1  // Emulate Serial1 on pins RX19,TX18 if Hardware serial is not present
+    
     ////////////////////////////////////////
     //Function declarations
     uint8_t setup_webserver();
     void run_webserver(TEMP_DATA_TYPE *temp);
+    void printWifiStatus();
+    inline char* GetSSID();
+    inline char* GetIPAddr();
     ////////////////////////////////////////
     
 #endif
