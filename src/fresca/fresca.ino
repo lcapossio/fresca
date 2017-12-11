@@ -49,42 +49,31 @@ Description:
 #include <DFR_Key.h>
 #include <EEPROM.h>
 #include "TempController.h"
-#include "ds1820.h"
+#include "fresca_pinout.h"
+#include "fresca_sensor.h"
 #include "utils.h"
 #include "fresca.h"
 
 ////////////////////////////////////////
-// ****** DEFINE PINOUT HERE ****** PINOUT_LINE
-//Define pinout for MAXIMUM number of sensors (MAX_NUM_DS1820_SENSORS), if less sensors are actually implemented (NUM_DS1820_SENSORS), the rest of the pins will not be used or touched at all
-const uint8_t gc_7seg_dio_pins[MAX_NUM_DS1820_SENSORS]   = {7,14,15,16,17,43,44,20};   //All TM1637 DIO are specified here
-const uint8_t gc_7seg_clk_pins                           = {8};                        //One clock for all TM1637 displays
-const uint8_t g_CoolerPins[MAX_NUM_DS1820_SENSORS]       = {9,21,22,23,24,25,26,27};   //Contains pin number for relay
-const uint8_t g_CoolerEn[MAX_NUM_DS1820_SENSORS]         = {1,1,1,1,1,1,1,1};          //Enable for Cooler actuator (otherwise temperature control is not implemented)
-const uint8_t g_HeaterPins[MAX_NUM_DS1820_SENSORS]       = {35,36,37,38,39,40,41,42};  //Contains pin number for relay
-const uint8_t g_HeaterEn[MAX_NUM_DS1820_SENSORS]         = {1,1,1,1,1,1,1,1};          //Enable for Heater actuator (otherwise temperature control is not implemented)
-const uint8_t gc_ds1820_pins[MAX_NUM_DS1820_SENSORS]     = {6,28,29,30,31,32,33,34};   //DS18B20 Digital temperature sensor
-const uint8_t gc_lcd_pins[6]                             = {12, 11, 5, 4, 3, 2};       //LCD 16x2 based on the Hitachi HD44780 controller (rs, enable, d4, d5, d6, d7)
-const uint8_t gc_keypad_pins                             = 0;                          //Analog Keypad on the LCD PCB (has to be an analog pin)
-////////////////////////////////////////
-
-////////////////////////////////////////
 //Global variables
-uint8_t         g_showtempLCD = 0;                         //Set to the Sensor number you want to display on the LCD (0: sensor0)
-TEMP_DATA_TYPE  g_TempReading[NUM_DS1820_SENSORS]   = {0}; //Last successful temperature reading
-TEMP_DATA_TYPE  g_CoolOnThresh[NUM_DS1820_SENSORS]  = {0};
-TEMP_DATA_TYPE  g_CoolOffThresh[NUM_DS1820_SENSORS] = {0};
-TEMP_DATA_TYPE  g_HeatOnThresh[NUM_DS1820_SENSORS]  = {0};
-TEMP_DATA_TYPE  g_HeatOffThresh[NUM_DS1820_SENSORS] = {0};
-TEMP_DATA_TYPE  g_OffsetSensor[NUM_DS1820_SENSORS]  = {0};
+static uint8_t         g_showSensLCD = 0;                  //Set to the Sensor number you want to display on the LCD (0: sensor0)
+static uint8_t         g_showTempHumLCD[NUM_SENSORS]= {0}; //0: display temperature, 1: display humidity (for respective sensor)
+static TEMP_DATA_TYPE  g_TempReading[NUM_SENSORS]   = {0}; //Last successful temperature reading for respective sensor
+static HUM_DATA_TYPE   g_HumReading[NUM_SENSORS]    = {0}; //Last successful humidity reading for respective sensor
+static TEMP_DATA_TYPE  g_CoolOnThresh[NUM_SENSORS]  = {0};
+static TEMP_DATA_TYPE  g_CoolOffThresh[NUM_SENSORS] = {0};
+static TEMP_DATA_TYPE  g_HeatOnThresh[NUM_SENSORS]  = {0};
+static TEMP_DATA_TYPE  g_HeatOffThresh[NUM_SENSORS] = {0};
+static TEMP_DATA_TYPE  g_OffsetSensor[NUM_SENSORS]  = {0};
 ////////////////////////////////////////
 
 ////////////////////////////////////////
 //Define objects
-TM1637Display                  * g_disp7seg[NUM_DS1820_SENSORS];      //7segment displays
-DS1820                         * g_ds1820[NUM_DS1820_SENSORS];        //DS18B20 Digital temperature sensor
-LiquidCrystal                    lcd(gc_lcd_pins[0], gc_lcd_pins[1], gc_lcd_pins[2], gc_lcd_pins[3], gc_lcd_pins[4], gc_lcd_pins[5]); //(rs, enable, d4, d5, d6, d7) //LCD 16x2 based on the Hitachi HD44780 controller
-DFR_Key                          keypad(gc_keypad_pins);              //Analog Keypad on the LCD
-TempController<TEMP_DATA_TYPE> * TempControllers[NUM_DS1820_SENSORS]; //Temperature controllers
+static TM1637Display                  * g_disp7seg[NUM_SENSORS];      //7segment displays
+static fresca_sensor                  * g_fresca_sensor;              //Fresca sensor class (contains the pointer to all sensors in the system)
+static LiquidCrystal                    lcd(gc_lcd_pins[0], gc_lcd_pins[1], gc_lcd_pins[2], gc_lcd_pins[3], gc_lcd_pins[4], gc_lcd_pins[5]); //(rs, enable, d4, d5, d6, d7) //LCD 16x2 based on the Hitachi HD44780 controller
+static DFR_Key                          keypad(gc_keypad_pins);       //Analog Keypad on the LCD
+static TempController<TEMP_DATA_TYPE> * TempControllers[NUM_SENSORS]; //Temperature controllers
 ////////////////////////////////////////
 
 ////////////////////////////////////////
@@ -93,7 +82,7 @@ TempController<TEMP_DATA_TYPE> * TempControllers[NUM_DS1820_SENSORS]; //Temperat
 
 void loop(void)
 {
-    lcd.clear();                //Wipe the screen
+    lcd.clear();                // Wipe the screen
     interrupts();               // enable all interrupts
     SET_TIMER1(TIMER_20MS);     // Set timer
     TIMSK1 |= (1 << OCIE1A);    // enable timer compare interrupt
@@ -139,7 +128,7 @@ void setup(void)
     //////////////////////////////////////////////////
     //Initialize Displays
     Serial.print("Initializing 7-segment displays...");
-    for (i = 0; i < NUM_DS1820_SENSORS; i++)
+    for (i = 0; i < NUM_7SEG; i++)
     {
         //Create object
         g_disp7seg[i] = new TM1637Display(gc_7seg_clk_pins,gc_7seg_dio_pins[i]);
@@ -149,13 +138,13 @@ void setup(void)
     }
     //Blink them
     delay_noInterrupts(400);
-    for (i = 0; i < NUM_DS1820_SENSORS; i++)
+    for (i = 0; i < NUM_7SEG; i++)
     {
         g_disp7seg[i]->setBrightness(0x00,false);//Turn-off
         g_disp7seg[i]->showNumberDec(1305,true); //Write the number again to turn off
     }
     delay_noInterrupts(400);
-    for (i = 0; i < NUM_DS1820_SENSORS; i++)
+    for (i = 0; i < NUM_7SEG; i++)
     {
         g_disp7seg[i]->setBrightness(0x0f,true); //Turn-on again (end blinking)
         g_disp7seg[i]->showNumberDec(1305,true);
@@ -165,14 +154,10 @@ void setup(void)
 
     //////////////////////////////////////////////////
     //Initialize temperature sensors
-    Serial.print("Initializing DS18B20 temperature sensors...");
-    for (i=0;i<NUM_DS1820_SENSORS;i++)
-    {
-        //Create object
-        g_ds1820[i] = new DS1820(gc_ds1820_pins[i],&Serial);
-        //Default is 12-bit resolution
-        g_ds1820[i]->StartTemp(); //Start temperature conversion
-    }
+    Serial.print("Initializing temperature sensors...");
+    
+    g_fresca_sensor = new fresca_sensor(NUM_SENSORS,gc_temp_sens_type,gc_temp_sens_pins,&Serial);
+    
     Serial.print("Done!");Serial.println();
     //////////////////////////////////////////////////
     
@@ -183,7 +168,7 @@ void setup(void)
     Serial.print("Done!");Serial.println();
     //////////////////////////////////////////////////
     
-    g_showtempLCD=0; //Show temperature for sensor0
+    g_showSensLCD=0; //Show temperature for sensor0
     
     //////////////////////////////////////////////////
     //Recall EEPROM values
@@ -205,7 +190,7 @@ void setup(void)
         
         //Write default values
         eeprom_offset = EEPROM_START_ADDR;
-        for (i=0; i<NUM_DS1820_SENSORS; i++)
+        for (i=0; i<NUM_SENSORS; i++)
         {
             g_CoolOnThresh[i] = COOLON_DFLT;
             EEPROM.put(eeprom_offset, g_CoolOnThresh[i]); eeprom_offset+=sizeof(TEMP_DATA_TYPE);
@@ -222,7 +207,7 @@ void setup(void)
         //We have written this EEPROM before, recall the data
         Serial.print("Successfully found magic number, recalling data ...");
         eeprom_offset = EEPROM_START_ADDR;
-        for (i=0; i<NUM_DS1820_SENSORS; i++)
+        for (i=0; i<NUM_SENSORS; i++)
         {
             EEPROM.get(eeprom_offset, g_CoolOnThresh[i]); eeprom_offset+=sizeof(TEMP_DATA_TYPE);
             EEPROM.get(eeprom_offset, g_CoolOffThresh[i]);eeprom_offset+=sizeof(TEMP_DATA_TYPE);
@@ -239,7 +224,7 @@ void setup(void)
     uint8_t pins[2];
     TEMP_DATA_TYPE limits[4];
     TEMP_DATA_TYPE thresholds[4];
-    for (i=0;i<NUM_DS1820_SENSORS;i++)
+    for (i=0;i<NUM_SENSORS;i++)
     {
         thresholds[0]=g_CoolOnThresh[i];thresholds[1]=g_CoolOffThresh[i];
         thresholds[2]=g_HeatOnThresh[i];thresholds[3]=g_HeatOffThresh[i];
@@ -247,8 +232,10 @@ void setup(void)
         limits[0]=MAX_TEMP;limits[1]=MIN_TEMP;
         limits[2]=MAX_TEMP;limits[3]=MIN_TEMP;
         if (g_CoolerEn[i] && g_HeaterEn[i])
+        {
             //Both cooling and heating
             TempControllers[i] = new TempController<TEMP_DATA_TYPE>(TempController_type::Both, pins, thresholds, limits, THRESHOLD_STEP);
+        }
         else if (g_CoolerEn[i])
         {
             //Just cooling
@@ -385,11 +372,32 @@ inline void main_menu()
                     PrintTempLCD(g_TempReading[currSensor],false,&lcd);
                 break;
                 
+                
+                case RIGHT_KEY:
+                case LEFT_KEY:
+                    lcd.clear(); //Wipe the screen
+                    if (g_showTempHumLCD[currSensor]==0)
+                    {
+                      if (g_fresca_sensor->GetHumiditySupport(currSensor)) //Check for humidity support
+                      {
+                        //Switch to displaying humidity for this sensor
+                        PrintHumidityLCD(g_HumReading[currSensor],false,&lcd);
+                        g_showTempHumLCD[currSensor] = 1;
+                      }
+                    }
+                    else
+                    {
+                      //Switch to displaying temperature for this sensor
+                      PrintTempLCD(g_TempReading[currSensor],false,&lcd);
+                      g_showTempHumLCD[currSensor] = 0;
+                    }
+                break;
+                
                 default:
                     // state = st_change_CoolOn;
                 break;
             }
-            g_showtempLCD=currSensor;
+            g_showSensLCD=currSensor;
             //Print first row only
             snprintf(print_buf, LCD_WIDTH+1, "Temp sensor %d         ",currSensor);
             lcd.setCursor(0,0);
@@ -397,7 +405,7 @@ inline void main_menu()
         break;
         
         case st_change_CoolOn:
-            g_showtempLCD=-1; //Dont show temperature for any sensor
+            g_showSensLCD=-1; //Dont show temperature for any sensor
             switch (tempKey)
             {
                 case SELECT_KEY:
@@ -427,7 +435,7 @@ inline void main_menu()
         break;
     
         case st_change_CoolOff:
-            g_showtempLCD=-1; //Dont show temperature for any sensor
+            g_showSensLCD=-1; //Dont show temperature for any sensor
             switch (tempKey)
             {
                 case SELECT_KEY:
@@ -456,7 +464,7 @@ inline void main_menu()
         break;
         
         case st_change_HeatOn:
-            g_showtempLCD=-1; //Dont show temperature for any sensor
+            g_showSensLCD=-1; //Dont show temperature for any sensor
             switch (tempKey)
             {
                 case SELECT_KEY:
@@ -486,7 +494,7 @@ inline void main_menu()
         break;
         
         case st_change_HeatOff:
-            g_showtempLCD=-1; //Dont show temperature for any sensor
+            g_showSensLCD=-1; //Dont show temperature for any sensor
             switch (tempKey)
             {
                 case SELECT_KEY:
@@ -517,15 +525,15 @@ inline void main_menu()
         break;
         
         case st_calib_sensor: //For offset calibration
-            g_showtempLCD=-1; //Dont show temperature for any sensor
+            g_showSensLCD=-1; //Dont show temperature for any sensor
             switch (tempKey)
             {
                 case SELECT_KEY:
                     //Go back to Main screen
                     lcd.clear(); //Wipe the screen
                     state = st_show_temp;
-                    //Write value in DS1820 scratchpad
-                    g_ds1820[currSensor]->WriteUserBytes(DS1820_CONFIG_REG,TempOffsetSensor);
+                    //Write value in sensor
+                    g_fresca_sensor->SetTempOffset(currSensor,TempOffsetSensor,(uint8_t) DS1820_CONFIG_REG);
                 break;
                 case RIGHT_KEY:
                     //Increment
@@ -586,20 +594,28 @@ inline void read_temp_sensors()
     //Loop all sensors
     //////////////////////////////////////////////////////////////////
     
-    for (sensor=0;sensor<NUM_DS1820_SENSORS;sensor++)
+    for (sensor=0;sensor<NUM_SENSORS;sensor++)
     {
         //////////////////////////////////////////////////////////////////
-        //Read temperature
+        //Read temperature (and humidity if supported)
         //////////////////////////////////////////////////////////////////
-        //Update temperature variables
-        reading_ok = g_ds1820[sensor]->UpdateTemp(USE_CRC);
-        //Start temperature conversion again
-        g_ds1820[sensor]->StartTemp();
+        //Read respective sensor
+        TEMP_DATA_TYPE TempReading;
+        
+        TempReading =  g_fresca_sensor->GetTemp(sensor);
+        reading_ok  = (g_fresca_sensor->GetStatus(sensor) == SensorStatus_t::FRESCA_SENS_OK) ? true : false;
+        
+        if (g_fresca_sensor->GetHumiditySupport(sensor))
+        {
+          //Humidity is supported
+          g_HumReading[sensor] = g_fresca_sensor->GetHumidity(sensor);
+        }
         
         if (reading_ok == true) //Check if sensor present or CRC error
         {
-            g_TempReading[sensor]  = g_ds1820[sensor]->GetTemp();
-            g_OffsetSensor[sensor] = g_ds1820[sensor]->GetOffset();
+            //If reading was good, update internal variables
+            g_TempReading[sensor]  = TempReading;
+            g_OffsetSensor[sensor] = g_fresca_sensor->GetTempOffset(sensor);
             
             if ( (g_OffsetSensor[sensor] > (TEMP_DATA_TYPE) MAX_OFF_TEMP) || (g_OffsetSensor[sensor] < -(TEMP_DATA_TYPE) MIN_OFF_TEMP) )
             {
@@ -617,6 +633,7 @@ inline void read_temp_sensors()
             //////////////////////////////////////////////////////////////////
             /////////
             
+            //Call temperature controller class to update its variables and update actuator's state
             TempControllers[sensor]->UpdateTemp(g_TempReading[sensor]);
             
             //////////////////////////////////////////////////////////////////
@@ -625,33 +642,39 @@ inline void read_temp_sensors()
 
             bool SignBit;
             
-            ///////////////////
-            //7-segment display
-            int32_t DispTemp32;
-            SignBit    = (g_TempReading[sensor] < 0) ? true : false;                     //test most sig bit
-            if (TEMP_FAHRENHEIT==0)
+            if (sensor < NUM_7SEG) //If 7segment display for this sensor exists
             {
-                //Format to display in 4 7-segment chars (multiply by 100, then remove fractional bits)
-                //Celsius
-                DispTemp32 = ( ( (int32_t) (g_TempReading[sensor]) ) * 100 ) >> 4;           //Promote to 32-bits for the 7-seg display
-                DispTemp32 = SignBit ? -DispTemp32 : DispTemp32;                             //Complement if negative
-                g_disp7seg[sensor]->showNumberDecEx((unsigned)DispTemp32, 0xFF, true, 4, 0);
-            }
-            else
-            {
-                //Format to display in 4 7-segment chars (multiply by 10, then remove fractional bits)
-                //Fahrenheit
-                DispTemp32 = ( ( (int32_t) (celsius2fahrenheit(g_TempReading[sensor])) ) * 10 ) >> 4;                 //Promote to 32-bits for the 7-seg display
-                DispTemp32 = SignBit ? -DispTemp32 : DispTemp32;                             //Complement if negative
-                g_disp7seg[sensor]->showNumberDecEx((unsigned)DispTemp32, 0x00, true, 4, 0);
+              ///////////////////
+              //7-segment display
+              int32_t DispTemp32;
+              SignBit    = (g_TempReading[sensor] < 0) ? true : false;                     //test most sig bit
+              if (TEMP_FAHRENHEIT==0)
+              {
+                  //Format to display in 4 7-segment chars (multiply by 100, then remove fractional bits)
+                  //Celsius
+                  DispTemp32 = ( ( (int32_t) (g_TempReading[sensor]) ) * 100 ) >> 4;           //Promote to 32-bits for the 7-seg display
+                  DispTemp32 = SignBit ? -DispTemp32 : DispTemp32;                             //Complement if negative
+                  g_disp7seg[sensor]->showNumberDecEx((unsigned)DispTemp32, 0xFF, true, 4, 0);
+              }
+              else
+              {
+                  //Format to display in 4 7-segment chars (multiply by 10, then remove fractional bits)
+                  //Fahrenheit
+                  DispTemp32 = ( ( (int32_t) (celsius2fahrenheit(g_TempReading[sensor])) ) * 10 ) >> 4;                 //Promote to 32-bits for the 7-seg display
+                  DispTemp32 = SignBit ? -DispTemp32 : DispTemp32;                             //Complement if negative
+                  g_disp7seg[sensor]->showNumberDecEx((unsigned)DispTemp32, 0x00, true, 4, 0);
+              }
             }
         }
         
         //////////////
         //LCD printing
-        if (g_showtempLCD == sensor)
+        if (g_showSensLCD == sensor)
         {
-            PrintTempLCD(g_TempReading[sensor],reading_ok==false,&lcd);
+            if (g_showTempHumLCD[sensor]==0) //0: display temperature, 1: display humidity
+              PrintTempLCD(g_TempReading[sensor],reading_ok==false,&lcd);
+            else
+              PrintHumidityLCD(g_HumReading[sensor],reading_ok==false,&lcd);
         }
     }
     

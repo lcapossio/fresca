@@ -68,10 +68,33 @@ bool PrintTempLCD(TEMP_DATA_TYPE temp, bool show_error, LiquidCrystal * lcd)
     return true;
 }
 
+//Prints humidity in the second row of the LCD
+bool PrintHumidityLCD(HUM_DATA_TYPE humidity, bool show_error, LiquidCrystal * lcd)
+{
+    // Separate off the whole and fractional portions, since sprintf doesn't support printing floats!!!
+    char print_buf[MAX_BUF_CHARS];
+    bool SignBit;
+    HUM_DATA_TYPE Whole, Fract;
+
+    SignBit  = (humidity < 0) ? true : false;  //test most sig bit
+    Whole    = SignBit ? -humidity : humidity; //Complement if negative
+    Fract    = ((Whole&0xF)*100)>>4;           //Leave only the last 2 decimal fractional digits
+    Whole    = Whole>>4;                       //Divide by 16 to get the whole part
+
+    //Print in the second row
+    //0xDF is *deg* in the LCD char set
+    snprintf(print_buf, LCD_WIDTH+1, "%c%02u.%02u\xDF%c %s", SignBit ? '-':'+', Whole, Fract, '%', show_error ? "  ERR!     " : "          ");
+    lcd->setCursor(0,1);
+    lcd->print(print_buf);
+    
+    //Always successful
+    return true;
+}
+
 inline uint8_t SensorNext(uint8_t currSensor)
 {
     currSensor += 1;
-    if (currSensor > NUM_DS1820_SENSORS-1)
+    if (currSensor > NUM_SENSORS-1)
     {
         currSensor = 0;
     }
@@ -82,9 +105,9 @@ inline uint8_t SensorNext(uint8_t currSensor)
 inline uint8_t SensorPrev(uint8_t currSensor)
 {
     currSensor -= 1;
-    if (currSensor > NUM_DS1820_SENSORS-1)
+    if (currSensor > NUM_SENSORS-1)
     {
-        currSensor = NUM_DS1820_SENSORS-1;
+        currSensor = NUM_SENSORS-1;
     }
     
     return currSensor;
@@ -106,7 +129,7 @@ bool SelectKeyPressed(DFR_Key *keypad)
 }
 
 //Convert celsius to fahrenheit
-//Celsius comes in Q11.4
+//Celsius/Fahrenheit are in Q11.4
 TEMP_DATA_TYPE celsius2fahrenheit(TEMP_DATA_TYPE celsius)
 {
     TEMP_DATA_TYPE fahrenheit;

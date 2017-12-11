@@ -59,11 +59,11 @@ class DS1820 : OneWire
 
         DS1820(uint8_t pin, HardwareSerial *serial_obj=NULL); //Constructor
 
-        DS1820_TEMP_DATA_TYPE DS1820::GetTemp();
-        DS1820_TEMP_DATA_TYPE DS1820::GetOffset();
-        void DS1820::StartTemp();
-        uint8_t DS1820::UpdateTemp(uint8_t chk_crc);
-        void DS1820::WriteUserBytes(uint8_t config_reg, DS1820_TEMP_DATA_TYPE offset);
+        DS1820_TEMP_DATA_TYPE GetTemp();
+        DS1820_TEMP_DATA_TYPE GetOffset();
+        void StartTemp();
+        uint8_t UpdateTemp(uint8_t chk_crc);
+        void WriteUserBytes(uint8_t config_reg, DS1820_TEMP_DATA_TYPE offset);
 };
 
 #endif
