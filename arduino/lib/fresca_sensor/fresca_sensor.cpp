@@ -27,8 +27,6 @@ Description:
 */
 
 #include "fresca_sensor.h"
-#include <DHT.h>
-#include "ds1820.h"
 
 //Constructor
 fresca_sensor::fresca_sensor(uint8_t numSensors, const SensorType_t *sensorType, const uint8_t *pin, HardwareSerial *serial_obj)

@@ -27,9 +27,7 @@ Description:
 *********************************************************************************************
 */
 
-#include <LiquidCrystal.h>
-#include <DFR_Key.h>
-#include "utils.h"
+#include "fresca_utils.h"
 
 //Delays in milliseconds, even when interrupts are disabled
 void delay_noInterrupts(uint16_t millis)
@@ -91,7 +89,7 @@ bool PrintHumidityLCD(HUM_DATA_TYPE humidity, bool show_error, LiquidCrystal * l
     return true;
 }
 
-inline uint8_t SensorNext(uint8_t currSensor)
+uint8_t SensorNext(uint8_t currSensor)
 {
     currSensor += 1;
     if (currSensor > NUM_SENSORS-1)
@@ -102,7 +100,7 @@ inline uint8_t SensorNext(uint8_t currSensor)
     return currSensor;
 }
 
-inline uint8_t SensorPrev(uint8_t currSensor)
+uint8_t SensorPrev(uint8_t currSensor)
 {
     currSensor -= 1;
     if (currSensor > NUM_SENSORS-1)

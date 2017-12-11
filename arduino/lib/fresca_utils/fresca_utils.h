@@ -41,17 +41,17 @@ Description:
 #ifndef FRESCA_UTILS_H
 #define FRESCA_UTILS_H
 
+    #include <fresca.h>
     #include <LiquidCrystal.h>
     #include <DFR_Key.h>
-    #include "fresca.h"
 
     ////////////////////////////////////////
     //Function declarations
     void delay_noInterrupts(uint16_t millis);                                                       //Delays in milliseconds, even when interrupts are disabled
     bool PrintTempLCD(TEMP_DATA_TYPE temp, bool show_error, LiquidCrystal *lcd);                    //Print temperature in second row of LCD
     bool PrintHumidityLCD(HUM_DATA_TYPE temp, bool show_error, LiquidCrystal *lcd);                 //Print humidity in second row of LCD
-    uint8_t SensorNext(uint8_t currSensor);                                                         //Get next sensor (and wrap around)
-    uint8_t SensorPrev(uint8_t currSensor);                                                         //Get previous sensor (and wrap around)
+    uint8_t SensorNext(uint8_t currSensor);                                                  //Get next sensor (and wrap around)
+    uint8_t SensorPrev(uint8_t currSensor);                                                  //Get previous sensor (and wrap around)
     bool SelectKeyPressed(DFR_Key *keypad);                                                         //Returns true if select key is pressed
     TEMP_DATA_TYPE celsius2fahrenheit(TEMP_DATA_TYPE celsius);                                      //Converts temp from celsius into fahrenheit
     int  freeRam();                                                                                 //Measure available RAM, for debug only, by Bill Earl, from adafruit.com

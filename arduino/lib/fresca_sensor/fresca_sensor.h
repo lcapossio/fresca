@@ -27,7 +27,10 @@ Description:
 #ifndef FRESCA_SENS_H
 #define FRESCA_SENS_H
 
-#include "fresca.h"
+#include <fresca.h>
+#include <Adafruit_Sensor.h>
+#include <ds1820.h>
+#include <DHT.h>
 
 typedef int16_t SENS_TEMP_DATA_TYPE; //Data type for temperature in fixed point format S12.4 (1 sign bit, 11 integer bits and 4 fractional bits)
 typedef int16_t SENS_HUM_DATA_TYPE;  //Data type for humidity in fixed point format S12.4 (1 sign bit, 11 integer bits and 4 fractional bits)

@@ -48,11 +48,11 @@ Description:
 #include <TM1637Display.h>
 #include <DFR_Key.h>
 #include <EEPROM.h>
-#include "TempController.h"
-#include "fresca_pinout.h"
-#include "fresca_sensor.h"
-#include "utils.h"
-#include "fresca.h"
+#include <TempController.h>
+#include <fresca_pinout.h>
+#include <fresca_sensor.h>
+#include <fresca_utils.h>
+#include <fresca.h>
 
 ////////////////////////////////////////
 //Global variables
@@ -90,7 +90,7 @@ void loop(void)
     Serial.print("***Executing Main Loop...");Serial.println();
     
     //MAIN Infinite loop
-    MAIN_LOOP:while(true)
+    while(true)
     {
         read_temp_sensors();
         delay_noInterrupts(TEMP_POLL_SEC); //750ms conversion time for 12 bits
