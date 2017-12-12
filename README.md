@@ -37,6 +37,9 @@ The current code has the following features:
 The project build is now automated by using either **Arduino-Makefile** or **platformio** (your choice), you can still use **Arduino IDE** as well.
 The default build is for Arduino Mega2560, but this can be ported to other boards.  
 
+**'PLEASE NOTE:'** This repo contains submodules, so for the first time cloning the repo you can do it like this: **'git clone --recursive https://github.com/lcapossio/fresca.git'**, or if you already cloned 
+you have to initialize the submodules: **'git submodule update --init --recursive'**. Also each time you pull, you have to pull recursively, in case there is an update for the submodules: **'git pull --recurse-submodules'**  
+
 Using **Arduino IDE**:  
 
 * Add all the libraries under **'arduino/lib'**
