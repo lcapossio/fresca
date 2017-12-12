@@ -45,7 +45,7 @@ const uint8_t g_HeaterEn[MAX_NUM_TEMP_SENSORS]         = {1,1,1,1,1,1,1,1};     
 const uint8_t gc_lcd_pins[6]                           = {12, 11, 5, 4, 3, 2};       //LCD 16x2 based on the Hitachi HD44780 controller (rs, enable, d4, d5, d6, d7)
 const uint8_t gc_keypad_pins                           = 0;                          //Analog Keypad on the LCD PCB (has to be an analog pin)
 const uint8_t gc_temp_sens_pins[MAX_NUM_TEMP_SENSORS]  = {6,28,29,30,31,32,33,34};   //Temperature sensors pins (one sensor per wire)
-const SensorType_t gc_temp_sens_type[MAX_NUM_TEMP_SENSORS]  = {
+const SensorType_t gc_temp_sens_type[MAX_NUM_TEMP_SENSORS]  = {                      //Specify what sensor is hooked to each index (matched up with the pins)
                                                                SensorType_t::FRESCA_SENS_DS1820,
                                                                SensorType_t::FRESCA_SENS_DS1820,
                                                                SensorType_t::FRESCA_SENS_DS1820,
