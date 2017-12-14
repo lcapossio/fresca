@@ -50,6 +50,7 @@ Description:
 #include <EEPROM.h>
 #include <TempController.h>
 #include <fresca_pinout.h>
+#include <fresca_spi.h>
 #include <fresca_sensor.h>
 #include <fresca_utils.h>
 #include <fresca.h>
@@ -112,6 +113,11 @@ void setup(void)
     Serial.print("'fresca' project");Serial.println();
     Serial.print("Aguantia  ...   ");Serial.println();
     Serial.print("---------------");Serial.println();
+    //////////////////////////////////////////////////
+    
+    //////////////////////////////////////////////////
+    //Initialize SPI Slave
+    setup_spi_slave();
     //////////////////////////////////////////////////
 
     //////////////////////////////////////////////////
@@ -265,6 +271,13 @@ void setup(void)
     Serial.print("***************************");Serial.println();
     
     delay_noInterrupts(INIT_DELAY);
+}
+
+// SPI interrupt routine
+ISR(SPI_STC_vect)
+{
+    //Service the SPI interface
+    spi_process(NUM_SENSORS*2,(uint8_t*)g_TempReading);
 }
 
 //////////////////////////////////////////
