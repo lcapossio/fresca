@@ -7,3 +7,6 @@
 [submodule "arduino/lib/Adafruit_Sensor"]
 	path = arduino/lib/Adafruit_Sensor
 	url = https://github.com/adafruit/Adafruit_Sensor.git
+[submodule "arduino/lib/OneWire"]
+	path = arduino/lib/OneWire
+	url = https://github.com/PaulStoffregen/OneWire.git

@@ -47,7 +47,7 @@ const uint8_t gc_keypad_pins                           = 0;                     
 const uint8_t gc_temp_sens_pins[MAX_NUM_TEMP_SENSORS]  = {6,28,29,30,31,32,33,34};   //Temperature sensors pins (one sensor per wire)
 const SensorType_t gc_temp_sens_type[MAX_NUM_TEMP_SENSORS]  = {                      //Specify what sensor is hooked to each index (matched up with the pins)
                                                                SensorType_t::FRESCA_SENS_DS1820,
-                                                               SensorType_t::FRESCA_SENS_DS1820,
+                                                               SensorType_t::FRESCA_SENS_DHT22,
                                                                SensorType_t::FRESCA_SENS_DS1820,
                                                                SensorType_t::FRESCA_SENS_DS1820,
                                                                SensorType_t::FRESCA_SENS_DS1820,

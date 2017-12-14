@@ -110,7 +110,7 @@ void setup(void)
     Serial.begin(9600);
     Serial.print("---------------");Serial.println();
     Serial.print("'fresca' project");Serial.println();
-    Serial.print("Aguantiaaaaa ...");Serial.println();
+    Serial.print("Aguantia  ...   ");Serial.println();
     Serial.print("---------------");Serial.println();
     //////////////////////////////////////////////////
 
@@ -121,7 +121,7 @@ void setup(void)
     lcd.setCursor(0,0);
     lcd.print("'fresca' project");
     lcd.setCursor(0,1);
-    lcd.print("Aguantiaaaaa ...");
+    lcd.print("Aguantia  ...   ");
     Serial.print("Done!");Serial.println();
     //////////////////////////////////////////////////
 

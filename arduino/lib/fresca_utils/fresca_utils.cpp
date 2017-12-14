@@ -80,8 +80,7 @@ bool PrintHumidityLCD(HUM_DATA_TYPE humidity, bool show_error, LiquidCrystal * l
     Whole    = Whole>>4;                       //Divide by 16 to get the whole part
 
     //Print in the second row
-    //0xDF is *deg* in the LCD char set
-    snprintf(print_buf, LCD_WIDTH+1, "%c%02u.%02u\xDF%c %s", SignBit ? '-':'+', Whole, Fract, '%', show_error ? "  ERR!     " : "          ");
+    snprintf(print_buf, LCD_WIDTH+1, "%c%02u.%02u%c %s", SignBit ? '-':'+', Whole, Fract, '%', show_error ? "  ERR!     " : "          ");
     lcd->setCursor(0,1);
     lcd->print(print_buf);
     
