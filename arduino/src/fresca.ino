@@ -89,11 +89,21 @@ void loop(void)
     
     Serial.print("***Executing Main Loop...");Serial.println();
     
+    uint32_t start_time;
+    
+    //Update sensors for the first time
+    start_time = millis();
+    read_temp_sensors();
+    
     //MAIN Infinite loop
     while(true)
     {
-        read_temp_sensors();
-        delay_noInterrupts(TEMP_POLL_SEC); //750ms conversion time for 12 bits
+        if (millis()-start_time >= (TEMP_POLL_MSEC+10))
+        {
+            //Update sensors
+            start_time = millis();
+            read_temp_sensors();
+        }
     }
 }
 

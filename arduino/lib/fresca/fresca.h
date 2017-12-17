@@ -103,7 +103,7 @@ Description:
     #define TEMP_FAHRENHEIT        0       //!=0 temperature is displayed in fahrenheit, otherwise in celsius
     #define USE_CRC                1       //!=0 DS1820 CRC check is enabled
     #define MAX_BUF_CHARS         64       //Max. characters for print buffer
-    #define TEMP_POLL_SEC        750       //Temperature polling in milliseconds
+    #define TEMP_POLL_MSEC       750       //Temperature polling in milliseconds
     #define LCD_WIDTH             16       //LCD horizontal length
     #define LCD_HEIGHT             2       //LCD vertical length
     #define RELAY_ACTIVE           0       //0: Active LOW relays, 1 active HIGH relays
