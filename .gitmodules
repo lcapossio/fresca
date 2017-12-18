@@ -10,3 +10,6 @@
 [submodule "arduino/lib/OneWire"]
 	path = arduino/lib/OneWire
 	url = https://github.com/PaulStoffregen/OneWire.git
+[submodule "arduino/lib/TM1637"]
+	path = arduino/lib/TM1637
+	url = https://github.com/avishorp/TM1637.git

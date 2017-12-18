@@ -2,7 +2,7 @@
 # ARDUINO_DIR flag HAS TO BE set with the absolute path to you Arduino root directory e.g. /home/some_user/arduino-1.8.5
 
 USER_LIB_PATH = ../lib
-ARDUINO_LIBS  = DFR_Key TM1637-1.1.0_7seg LiquidCrystal EEPROM OneWire ds1820 \
+ARDUINO_LIBS  = DFR_Key TM1637 LiquidCrystal EEPROM OneWire ds1820 \
                 TempController Adafruit_Sensor DHT-sensor-library fresca_sensor fresca_utils fresca
 
 # --- mega2560 ide 1.6
