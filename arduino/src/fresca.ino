@@ -49,6 +49,7 @@ Description:
 #include <DFR_Key.h>
 #include <EEPROM.h>
 #include <TempController.h>
+#include <fresca_link.h>
 #include <fresca_pinout.h>
 #include <fresca_sensor.h>
 #include <fresca_utils.h>
@@ -103,6 +104,7 @@ void loop(void)
             //Update sensors
             start_time = millis();
             read_temp_sensors();
+            send_temp_link(NUM_SENSORS*2, (uint8_t *) g_TempReading);
         }
     }
 }
@@ -124,6 +126,8 @@ void setup(void)
     Serial.print("---------------");Serial.println();
     //////////////////////////////////////////////////
 
+    setup_fresca_link();
+    
     //////////////////////////////////////////////////
     //Initialize LCD
     Serial.print("Initializing LCD...");
