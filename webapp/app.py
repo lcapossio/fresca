@@ -1,3 +1,11 @@
+#!/usr/bin/python
+
+#fresca project by Leonardo Capossio
+
+#sys.argv[1], server listen port
+#sys.argv[2], Path to dump log files to
+
+
 from flask import Flask, render_template, request, url_for, send_from_directory
 from fresca_data import fresca_fetch
 import time

@@ -1,9 +1,11 @@
+#fresca project by Leonardo Capossio
+
 import os
 import csv
 import tarfile
 import itertools
 
-#Header: 'Time','Temperature','Humidity','Sensor index','Sensor type','CoolerOn','HeaterOn'
+#CSV Header: 'Time','Temperature','Humidity','Sensor index','Sensor type','CoolerOn','HeaterOn'
 
 def fresca_fetch(filename,sensor_idx,start_time=int(0),end_time=int(235959),num_sensors=8,decimate_samples=60,use_moving_avg=False,max_datapoints=1500):
 

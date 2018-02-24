@@ -12,6 +12,11 @@ then it will start with a new CSV file.
 **fresca-link** is a program run on a host that listens to the UART connected to the **fresca-controller** and parses the packets
 for data logging and/or displaying
 
+### Requirements
+
+Python installed in your OS with **pyserial** for your python environment. On Linux do: `sudo pip install pyserial`. Currently only
+tested for python 2.7
+
 ### Usage  
 
 Connect the host to the **fresca-controller** UART. You may need to use a level converter from 5v to 3.3v viceversa
@@ -21,6 +26,7 @@ Start the link with: ` sudo python fresca_uart_link.py [log_dir] [logging_interv
 Look at the output to see if packets are coming from the controller. You can check the log directory
 to see the CSV files being created
 
+*Note, the `sudo` is because you need access to the serial port interface*
 
 ### CSV file format  
 
