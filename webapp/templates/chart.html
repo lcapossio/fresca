@@ -1,0 +1,174 @@
+<html>
+  <head>
+    {% if draw_chart == True %}
+      <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+      <script type="text/javascript">
+        google.charts.load('current', {'packages':['corechart']});
+        google.charts.setOnLoadCallback(drawChart);
+
+        function drawChart() {
+          var data = google.visualization.arrayToDataTable
+          ([
+            ['Time', 'Temperature'],
+            
+            {% for data in sens_data %}
+                {{ data|safe }} {% if not loop.last %},{% endif %}
+            {% endfor %}
+          ]);
+
+          var options = {
+            title: 'Sensor temperature',
+            curveType: 'function',
+            legend: { position: 'bottom' },
+            
+            vAxis: {
+              viewWindowMode:'explicit',
+              viewWindow: {
+                max:35.0,
+                min:5.0
+              }
+            }
+            
+          };
+
+          var chart = new google.visualization.LineChart(document.getElementById('curve_chart'));
+
+          chart.draw(data, options);
+        }
+      </script>
+      
+    {% endif %}
+      
+      <script type="text/javascript">
+        function loading(){
+            document.getElementById("loading").style.display = 'block'
+        }
+        
+      </script>
+    
+    <style>
+      div#loading {
+          display: none;
+          cursor: wait;
+          }
+    </style>
+    
+  </head>
+  <body>
+    
+    <H1>Fresca monitor</H1>
+    
+    <!--    Home button    -->
+    <form action="{{ url_for('index') }}">
+        <input type="submit" value="Home" />
+    </form>
+    
+    <!--    Chart forms    -->
+    <form class="form-inline" method="POST" action="{{ url_for('chart_update') }}">
+      <div class="form-group">
+        <div class="input-group">
+            <span class="input-group-addon">Sensor</span>
+                <select name="sens_select" class="selectpicker form-control">
+                  {% for sens in range(8) %}
+                    <option value="{{ sens }}" {% if sensor == sens %} selected {% endif %}> {{ sens }}</option>
+                  {% endfor %}
+                </select>
+        </div>
+        <br>
+        <div class="input-group">
+            <span class="input-group-addon">Day</span>
+                <select name="day_select" class="selectpicker form-control">
+                  {% for d in range(1,31) %}
+                    <option value="{{ d }}" {% if day == d %} selected {% endif %}>{{ d }}</option>
+                  {% endfor %}
+                </select>
+            <span class="input-group-addon">Month</span>
+                <select name="month_select" class="selectpicker form-control">
+                  {% for m in range(1,13) %}
+                    <option value="{{ m }}" {% if month == m %} selected {% endif %}>{{ m }}</option>
+                  {% endfor %}
+                </select>
+            <span class="input-group-addon">Year</span>
+                <select name="year_select" class="selectpicker form-control">
+                  {% for y in range(2018,2035) %}
+                    <option value="{{ y }}" {% if year == y %} selected {% endif %}>{{ y }}</option>
+                  {% endfor %}
+                </select>
+        </div>
+        <br>
+        <b>Start:</b>
+        <div class="input-group">
+            <span class="input-group-addon">Hour</span>
+                <select name="hour_start_select" class="selectpicker form-control">
+                  {% for h in range(0,24) %}
+                    <option value="{{ h }}" {% if start_hour == h %} selected {% endif %}>{{ h }}</option>
+                  {% endfor %}
+                </select>
+            <span class="input-group-addon">Minute</span>
+                <select name="minute_start_select" class="selectpicker form-control">
+                  {% for m in range(0,60) %}
+                    <option value="{{ m }}" {% if start_minute == m %} selected {% endif %}>{{ m }}</option>
+                  {% endfor %}
+                </select>
+            <span class="input-group-addon">Second</span>
+                <select name="second_start_select" class="selectpicker form-control">
+                  {% for s in range(0,60) %}
+                    <option value="{{ s }}" {% if start_second == s %} selected {% endif %}>{{ s }}</option>
+                  {% endfor %}
+                </select>
+        </div>
+        <br>
+        <b>End:</b>
+        <div class="input-group">
+            <span class="input-group-addon">Hour</span>
+                <select name="hour_end_select" class="selectpicker form-control">
+                  {% for h in range(0,24) %}
+                    <option value="{{ h }}" {% if end_hour == h %} selected {% endif %}>{{ h }}</option>
+                  {% endfor %}
+                </select>
+            <span class="input-group-addon">Minute</span>
+                <select name="minute_end_select" class="selectpicker form-control">
+                  {% for m in range(0,60) %}
+                    <option value="{{ m }}" {% if end_minute == m %} selected {% endif %}>{{ m }}</option>
+                  {% endfor %}
+                </select>
+            <span class="input-group-addon">Second</span>
+                <select name="second_end_select" class="selectpicker form-control">
+                  {% for s in range(0,60) %}
+                    <option value="{{ s }}" {% if end_second == s %} selected {% endif %}>{{ s }}</option>
+                  {% endfor %}
+                </select>
+        </div>
+        <br>
+        <div class="input-group">
+            <span class="input-group-addon">Decimate by</span>
+                <select name="decimate_select" class="selectpicker form-control">
+                  {% for d in range(1,61) %}
+                    <option value="{{ d }}" {% if decimate_by == d %} selected {% endif %}>{{ d }}</option>
+                  {% endfor %}
+                </select>
+            <input type="checkbox" name="movavg_check" value="movavg_check" {% if movavg_check == True %} checked {% endif %}>Moving average<br>
+        </div>
+        <br>
+        
+        <button name="submit" type="submit" class="btn btn-default" value="Specific" onclick="loading();">Go</button>
+        <button name="submit" type="submit" class="btn btn-default" value="Latest" onclick="loading();">Get latest</button>
+        
+      </div>
+    </form>
+    
+    <br>
+    
+    <!--    Google Chart!    -->
+    {% if draw_chart == True %}
+      <H2>Sensor {{ sensor |safe }} on {{ day |safe }}/{{ month |safe }}/{{ year |safe }} at {{ start_hour |safe }}:{{ start_minute |safe }}:{{ start_second|safe }} to {{ end_hour |safe }}:{{ end_minute |safe }}:{{ end_second |safe }}</H2>
+      <div id="curve_chart" style="width: 900px; height: 500px"></div>
+    {% else %}
+      <H1>ERROR, NO DATA</H1>
+    {% endif %}
+    
+    <!--    Loading text    -->
+    <div id="loading" ><H2>... LOADING ...</H2></div>
+
+  </body>
+</html>
