@@ -52,7 +52,7 @@ void send_request_config(uint8_t config_size,uint8_t *config_types)
     return;
 }
 
-//Send 'fresca_link' packet
+//Send 'fresca-link' packet
 void tx_packet(uint8_t cmd_type, uint8_t payload_len, uint8_t *payload)
 {
     uint8_t checksum;
@@ -72,30 +72,30 @@ void tx_packet(uint8_t cmd_type, uint8_t payload_len, uint8_t *payload)
     return;
 }
 
-//Receive 'fresca_link' packet, if return value is true, it indicates correctly received packet
+//Receive 'fresca-link' packet, if return value is true, it indicates correctly received packet
 //
 //Macro for doing an arduino read with timeout
-#define SERIAL1_READ(VAR) timeout=-1; \
-                          while(!Serial.available()){  \
-                          if (!timeout){return false;} \
-                          timeout--;}; \
-                          VAR=Serial1.read()
-uint8_t rx_packet(uint8_t *type, uint8_t *len, uint8_t *buffer, uint8_t max_size)
+#define SERIAL1_READ(VAR,TIM_VAR,INIT) TIM_VAR=INIT; \
+                                       while(!Serial.available()){  \
+                                       if (!TIM_VAR){return false;} \
+                                       TIM_VAR--;}; \
+                                       VAR=Serial1.read()
+uint8_t rx_packet(uint8_t *type, uint8_t *len, uint8_t *buffer, uint8_t max_len)
 {
-    uint8_t recv; uint8_t timeout;
+    uint8_t recv, timeout;
     if (Serial1.available())
     {
         recv=Serial1.read();
         if (recv==LINK_START_CMD)
         {
             //Got a packet coming
-            SERIAL1_READ(recv); //Type of command
+            SERIAL1_READ(recv,timeout,-1); //Type of command
             *type=recv;
             
             uint8_t checksum, payload_len;
-            SERIAL1_READ(payload_len); //Read Payload length
+            SERIAL1_READ(payload_len,timeout,-1); //Read Payload length
             *len=payload_len; //Write payload length
-            if (payload_len > max_size || payload_len == 0)
+            if (payload_len > max_len || payload_len == 0)
             {
                 //Invalid length
                 return false;
@@ -105,12 +105,12 @@ uint8_t rx_packet(uint8_t *type, uint8_t *len, uint8_t *buffer, uint8_t max_size
             
             for (uint8_t i=0;i<payload_len;i++)
             {
-                SERIAL1_READ(recv); //Read Payload
+                SERIAL1_READ(recv,timeout,-1); //Read Payload
                 buffer[i]=recv;     //Write payload
                 checksum = calc_checksum(recv,checksum);
             }
 
-            SERIAL1_READ(recv); //Receive checksum
+            SERIAL1_READ(recv,timeout,-1); //Receive checksum
             if (recv != checksum)
             {
                 //Wrong checksum

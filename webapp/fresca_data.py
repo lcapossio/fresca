@@ -9,21 +9,21 @@ import itertools
 
 def fresca_fetch(filename,sensor_idx,start_time=int(0),end_time=int(235959),num_sensors=8,decimate_samples=60,use_moving_avg=False,max_datapoints=1500):
 
-  comp_filename = filename+'.tar.gz'
+  tar_filename = filename+'.tar.gz'
   csv_filename = filename+'.csv'
   remove_after_reading=False
   
   print(start_time)
   print(end_time)
   
-  if os.path.isfile(comp_filename): #If compressed file exists
+  if os.path.isfile(tar_filename): #If compressed file exists
     #Open the file an uncompress it
-    print('Extracting '+comp_filename)
-    tar = tarfile.open(comp_filename,'r:gz')
-    tar.extractall(path=os.path.dirname(comp_filename))
+    print('Extracting '+tar_filename)
+    tar = tarfile.open(tar_filename,'r:gz')
+    tar.extractall(path=os.path.dirname(tar_filename))
     tar.close()
     if not os.path.isfile(csv_filename):
-      print('There was a problem uncompressing '+comp_filename)
+      print('There was a problem uncompressing '+tar_filename)
       csv_file=None
       return False
     else:
@@ -50,7 +50,7 @@ def fresca_fetch(filename,sensor_idx,start_time=int(0),end_time=int(235959),num_
   
   sens_data = []
   first_sample=True
-  movaverage_len=decimate_samples
+  movaverage_len=max(decimate_samples,8)
   decimate=0
   total_data_points=0
   

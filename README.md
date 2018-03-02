@@ -8,8 +8,8 @@ This project aims to develop a multi-sensor (up to 8) temperature process contro
 The process controller is called **fresca-controller** and is based on an Arduino platform and the DS18B20 and/or DHT22 digital sensors. It supports setting temperature operating point with hystheresis 
 via an LCD Keypad shield, and supports temperature display with additional 7-segment displays for each sensor. The controller will turn on/off the heating/cooling actuators according to configurable
 temperature thresholds for each sensor.  
-The host handles connection to the controller using **fresca-link** (UART) and provides remote access via **fresca-webapp**. It usually is
-a single board computer.
+The host handles connection to the controller using **fresca-link** (UART) and provides remote access to the controller via **fresca-webapp**.
+It is usually run on a single board computer like a Raspberry Pi.
 
 ## Features
 ***

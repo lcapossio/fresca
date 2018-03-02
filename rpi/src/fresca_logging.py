@@ -5,14 +5,17 @@ import csv
 import multiprocessing
 
 #Globals shared among this functions
-csv_filename = ''
+csv_filename  = ''
 csv_file_dir  = ''
+do_compress   = True
 
 #new_dir has to be the path to the CSV file directory
 #Open a new fresca log file file
-def start_logging(new_dir=''):
-  global csv_file_dir,csv_filename
+def start_logging(new_dir='',compress=True):
+  global csv_file_dir,csv_filename,do_compress
 
+  do_compress = compress
+  
   if new_dir != '': #If new_dir is specified
     #Update directory
     csv_file_dir=new_dir
@@ -63,19 +66,18 @@ def start_logging(new_dir=''):
   return csv_file
   
 #Write log file into a compressed file (TAR+GZ)
-def write_compress_csv_file(filename):
-  tar_filename = os.path.splitext(filename)[0]+'.tar.gz'
+def write_compress_csv_file(csv_filename):
+  tar_filename = os.path.splitext(csv_filename)[0]+'.tar.gz'
   #print ('compressing to filename='+tar_filename)
   with tarfile.open(tar_filename, "w:gz") as tar:
-    tar.add(filename, arcname=os.path.basename(filename), recursive=False)
+    tar.add(csv_filename, arcname=os.path.basename(csv_filename), recursive=False)
   
   #Delete log csv file, leaving only the compressed tar file
-  os.remove(filename)
+  os.remove(csv_filename)
   
   return
   
-def archive_csv_file():
-  global csv_file_dir,csv_filename
+def archive_csv_file(csv_filename):
   #Spawn a new process to compress the file as this may take a while and we need to keep logging
   p = multiprocessing.Process(target=write_compress_csv_file, args=(csv_filename,))
   p.start()
@@ -84,9 +86,14 @@ def archive_csv_file():
   # write_compress_csv_file(csv_filename) #Write-compress current file
 
 def end_logging(csv_file):
-  global csv_file_dir,csv_filename
-  csv_file.close() #Write csv file and close
-  archive_csv_file() #Archive the log (compress)
+  global csv_file_dir,csv_filename,do_compress
+  
+  #Write CSV file and close
+  csv_file.close()
+  
+  #Archive the log (compress)
+  if do_compress:
+    archive_csv_file(csv_filename)
 
   return
   

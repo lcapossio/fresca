@@ -2,20 +2,92 @@
   <head>
     {% if draw_chart == True %}
       <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+      <!-- <script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script> -->
+      <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
       <script type="text/javascript">
         google.charts.load('current', {'packages':['corechart']});
-        google.charts.setOnLoadCallback(drawChart);
+        <!-- google.charts.setOnLoadCallback(drawChart); -->
 
-        function drawChart() {
-          var data = google.visualization.arrayToDataTable
-          ([
-            ['Time', 'Temperature'],
-            
-            {% for data in sens_data %}
-                {{ data|safe }} {% if not loop.last %},{% endif %}
-            {% endfor %}
-          ]);
+        function printDate() {
+            $("#date_header").html(
+                                    "<H2>Sensor ".concat(
+                                    $('#sens_select option:selected').val()," on ",
+                                    $('#day_select option:selected').val(),"/",$('#month_select option:selected').val(),
+                                    "/",$('#year_select option:selected').val()," at ",$('#hour_start_select option:selected').val(),":",
+                                    $('#minute_start_select option:selected').val(),":",$('#second_start_select option:selected').val()," to ",
+                                    $('#hour_end_select option:selected').val(),":",$('#minute_end_select option:selected').val(),":",
+                                    $('#second_end_select option:selected').val(),"</H3>"
+                                    )
+                                  )
+        };
+        
+        
+        function getChartData() {
+        
+          var movavg_checked=0
+          if ($('#movavg_check').is(':checked')) {
+            movavg_checked = 1;
+          }
+          
+          $.ajax({
+             type: "POST",
+             url: "{{ url_for('chart_update') }}",
+             dataType: "json",
+             data: {
+                    sens_select:        $('#sens_select option:selected').val(),
+                    day_select:         $('#day_select option:selected').val(),
+                    month_select:       $('#month_select option:selected').val(),
+                    year_select:        $('#year_select option:selected').val(),
+                    hour_start_select:  $('#hour_start_select option:selected').val(),
+                    minute_start_select:$('#minute_start_select option:selected').val(),
+                    second_start_select:$('#second_start_select option:selected').val(),
+                    hour_end_select:    $('#hour_end_select option:selected').val(),
+                    minute_end_select:  $('#minute_end_select option:selected').val(),
+                    second_end_select:  $('#second_end_select option:selected').val(),
+                    decimate_select:    $('#decimate_select option:selected').val(),
+                    movavg_check:       movavg_checked
+                  },
+             success: function(response) {
+               <!-- console.log(response); -->
+               drawChart(response);
+               hideloading();
+             },
+             error:function (xhr, ajaxOptions, thrownError){
+               console.log("Error: ".concat(xhr.status," data not available for that date"));
+               alert("Data not available for that date");
+               hideloading();
+             }
 
+             
+          });
+        }
+        
+        function getfrescaRunningState() {
+          $.ajax({
+             type: "POST",
+             url: "{{ url_for('fresca_running') }}",
+             dataType: "json",
+             success: function(response) {
+                 console.log(response);
+                 fresca_running_state(response);
+             },
+             error: function(error) {
+                 console.log(error);
+             }
+          });
+        }
+        
+        
+        function drawChart(jsonData) {
+          
+          var data_arr = [];
+
+          for(var x in jsonData){
+            data_arr.push(jsonData[x]);
+          }
+          
+          var data = new google.visualization.arrayToDataTable(data_arr);
+          
           var options = {
             title: 'Sensor temperature',
             curveType: 'function',
@@ -34,24 +106,56 @@
           var chart = new google.visualization.LineChart(document.getElementById('curve_chart'));
 
           chart.draw(data, options);
-        }
-      </script>
-      
-    {% endif %}
-      
-      <script type="text/javascript">
-        function loading(){
-            document.getElementById("loading").style.display = 'block'
+          
+          printDate();
+          
         }
         
-      </script>
-    
-    <style>
-      div#loading {
-          display: none;
-          cursor: wait;
+        <!-- 'Go' button was clicked -->
+        function clickGo() {
+          showloading();
+          getChartData();
+        };
+        
+        <!-- 'Get Latest' button was clicked -->
+        function clickLatest() {
+          showloading();
+          getChartData();
+        };
+        
+        function showloading(){
+          $("#LoadingText").html("<H2 style=\"color:red;display:inline\">   ... LOADING ...</H2>");
+          document.getElementById("GoBtn").disabled = true;
+          document.getElementById("LatestBtn").disabled = true;
+        }
+        
+        function hideloading(){
+          $("#LoadingText").html("");
+          document.getElementById("GoBtn").disabled = false;
+          document.getElementById("LatestBtn").disabled = false;
+        }
+
+        function fresca_running_state(response){
+          if (response == true){
+            $("#fresca_run_div").html("<H2 style=\"color:green;\">fresca-link is running</H2></div>");
           }
-    </style>
+          else{
+            $("#fresca_run_div").html("<H2 style=\"color:red;\">fresca-link is NOT running!</H2>");
+          }
+        }
+        
+        function PageOnLoad(){
+          getfrescaRunningState();
+          clickGo();
+        }
+        
+        window.setInterval(getfrescaRunningState, 5000);
+        window.onload = PageOnLoad
+        
+      </script>
+      
+    
+    {% endif %}
     
   </head>
   <body>
@@ -64,111 +168,114 @@
     </form>
     
     <!--    Chart forms    -->
-    <form class="form-inline" method="POST" action="{{ url_for('chart_update') }}">
-      <div class="form-group">
-        <div class="input-group">
-            <span class="input-group-addon">Sensor</span>
-                <select name="sens_select" class="selectpicker form-control">
-                  {% for sens in range(8) %}
-                    <option value="{{ sens }}" {% if sensor == sens %} selected {% endif %}> {{ sens }}</option>
-                  {% endfor %}
-                </select>
-        </div>
-        <br>
-        <div class="input-group">
-            <span class="input-group-addon">Day</span>
-                <select name="day_select" class="selectpicker form-control">
-                  {% for d in range(1,31) %}
-                    <option value="{{ d }}" {% if day == d %} selected {% endif %}>{{ d }}</option>
-                  {% endfor %}
-                </select>
-            <span class="input-group-addon">Month</span>
-                <select name="month_select" class="selectpicker form-control">
-                  {% for m in range(1,13) %}
-                    <option value="{{ m }}" {% if month == m %} selected {% endif %}>{{ m }}</option>
-                  {% endfor %}
-                </select>
-            <span class="input-group-addon">Year</span>
-                <select name="year_select" class="selectpicker form-control">
-                  {% for y in range(2018,2035) %}
-                    <option value="{{ y }}" {% if year == y %} selected {% endif %}>{{ y }}</option>
-                  {% endfor %}
-                </select>
-        </div>
-        <br>
-        <b>Start:</b>
-        <div class="input-group">
-            <span class="input-group-addon">Hour</span>
-                <select name="hour_start_select" class="selectpicker form-control">
-                  {% for h in range(0,24) %}
-                    <option value="{{ h }}" {% if start_hour == h %} selected {% endif %}>{{ h }}</option>
-                  {% endfor %}
-                </select>
-            <span class="input-group-addon">Minute</span>
-                <select name="minute_start_select" class="selectpicker form-control">
-                  {% for m in range(0,60) %}
-                    <option value="{{ m }}" {% if start_minute == m %} selected {% endif %}>{{ m }}</option>
-                  {% endfor %}
-                </select>
-            <span class="input-group-addon">Second</span>
-                <select name="second_start_select" class="selectpicker form-control">
-                  {% for s in range(0,60) %}
-                    <option value="{{ s }}" {% if start_second == s %} selected {% endif %}>{{ s }}</option>
-                  {% endfor %}
-                </select>
-        </div>
-        <br>
-        <b>End:</b>
-        <div class="input-group">
-            <span class="input-group-addon">Hour</span>
-                <select name="hour_end_select" class="selectpicker form-control">
-                  {% for h in range(0,24) %}
-                    <option value="{{ h }}" {% if end_hour == h %} selected {% endif %}>{{ h }}</option>
-                  {% endfor %}
-                </select>
-            <span class="input-group-addon">Minute</span>
-                <select name="minute_end_select" class="selectpicker form-control">
-                  {% for m in range(0,60) %}
-                    <option value="{{ m }}" {% if end_minute == m %} selected {% endif %}>{{ m }}</option>
-                  {% endfor %}
-                </select>
-            <span class="input-group-addon">Second</span>
-                <select name="second_end_select" class="selectpicker form-control">
-                  {% for s in range(0,60) %}
-                    <option value="{{ s }}" {% if end_second == s %} selected {% endif %}>{{ s }}</option>
-                  {% endfor %}
-                </select>
-        </div>
-        <br>
-        <div class="input-group">
-            <span class="input-group-addon">Decimate by</span>
-                <select name="decimate_select" class="selectpicker form-control">
-                  {% for d in range(1,61) %}
-                    <option value="{{ d }}" {% if decimate_by == d %} selected {% endif %}>{{ d }}</option>
-                  {% endfor %}
-                </select>
-            <input type="checkbox" name="movavg_check" value="movavg_check" {% if movavg_check == True %} checked {% endif %}>Moving average<br>
-        </div>
-        <br>
-        
-        <button name="submit" type="submit" class="btn btn-default" value="Specific" onclick="loading();">Go</button>
-        <button name="submit" type="submit" class="btn btn-default" value="Latest" onclick="loading();">Get latest</button>
-        
+    <div class="form-group">
+      <div class="input-group">
+          <span class="input-group-addon">Sensor</span>
+              <select name="sens_select" id="sens_select" class="selectpicker form-control">
+                {% for sens in range(8) %}
+                  <option value="{{ sens }}" {% if sensor == sens %} selected {% endif %}> {{ sens }}</option>
+                {% endfor %}
+              </select>
       </div>
-    </form>
+      <br>
+      <div class="input-group">
+          <span class="input-group-addon">Day</span>
+              <select name="day_select" id="day_select" class="selectpicker form-control">
+                {% for d in range(1,31) %}
+                  <option value="{{ d }}" {% if day == d %} selected {% endif %}>{{ d }}</option>
+                {% endfor %}
+              </select>
+          <span class="input-group-addon">Month</span>
+              <select name="month_select" id="month_select" class="selectpicker form-control">
+                {% for m in range(1,13) %}
+                  <option value="{{ m }}" {% if month == m %} selected {% endif %}>{{ m }}</option>
+                {% endfor %}
+              </select>
+          <span class="input-group-addon">Year</span>
+              <select name="year_select" id="year_select" class="selectpicker form-control">
+                {% for y in range(2018,2035) %}
+                  <option value="{{ y }}" {% if year == y %} selected {% endif %}>{{ y }}</option>
+                {% endfor %}
+              </select>
+      </div>
+      <br>
+      <b>Start:</b>
+      <div class="input-group">
+          <span class="input-group-addon">Hour</span>
+              <select name="hour_start_select" id="hour_start_select" class="selectpicker form-control">
+                {% for h in range(0,24) %}
+                  <option value="{{ h }}" {% if start_hour == h %} selected {% endif %}>{{ h }}</option>
+                {% endfor %}
+              </select>
+          <span class="input-group-addon">Minute</span>
+              <select name="minute_start_select" id="minute_start_select"class="selectpicker form-control">
+                {% for m in range(0,60) %}
+                  <option value="{{ m }}" {% if start_minute == m %} selected {% endif %}>{{ m }}</option>
+                {% endfor %}
+              </select>
+          <span class="input-group-addon">Second</span>
+              <select name="second_start_select" id="second_start_select" class="selectpicker form-control">
+                {% for s in range(0,60) %}
+                  <option value="{{ s }}" {% if start_second == s %} selected {% endif %}>{{ s }}</option>
+                {% endfor %}
+              </select>
+      </div>
+      <br>
+      <b>End:</b>
+      <div class="input-group">
+          <span class="input-group-addon">Hour</span>
+              <select name="hour_end_select" id="hour_end_select" class="selectpicker form-control">
+                {% for h in range(0,24) %}
+                  <option value="{{ h }}" {% if end_hour == h %} selected {% endif %}>{{ h }}</option>
+                {% endfor %}
+              </select>
+          <span class="input-group-addon">Minute</span>
+              <select name="minute_end_select" id="minute_end_select" class="selectpicker form-control">
+                {% for m in range(0,60) %}
+                  <option value="{{ m }}" {% if end_minute == m %} selected {% endif %}>{{ m }}</option>
+                {% endfor %}
+              </select>
+          <span class="input-group-addon">Second</span>
+              <select name="second_end_select" id="second_end_select" class="selectpicker form-control">
+                {% for s in range(0,60) %}
+                  <option value="{{ s }}" {% if end_second == s %} selected {% endif %}>{{ s }}</option>
+                {% endfor %}
+              </select>
+      </div>
+      <br>
+      <div class="input-group">
+          <span class="input-group-addon">Decimate by</span>
+              <select name="decimate_select" id="decimate_select" class="selectpicker form-control">
+                {% for d in range(1,61) %}
+                  <option value="{{ d }}" {% if decimate_by == d %} selected {% endif %}>{{ d }}</option>
+                {% endfor %}
+              </select>
+          <input type="checkbox" name="movavg_check" id="movavg_check" value="movavg_check" {% if movavg_check == True %} checked {% endif %}>Moving average<br>
+      </div>
+      <br>
+    </div>
+    
+    <br>
+    
+    <div style="display:inline">
+      <input style="display:inline" type="button" id="GoBtn" onclick="clickGo()" value="Go"/>
+      <input style="display:inline" type="button" id="LatestBtn" onclick="clickLatest();" value="Get latest"/>
+      <span  style="display:inline" id="LoadingText"></span>
+    </div>
     
     <br>
     
     <!--    Google Chart!    -->
     {% if draw_chart == True %}
-      <H2>Sensor {{ sensor |safe }} on {{ day |safe }}/{{ month |safe }}/{{ year |safe }} at {{ start_hour |safe }}:{{ start_minute |safe }}:{{ start_second|safe }} to {{ end_hour |safe }}:{{ end_minute |safe }}:{{ end_second |safe }}</H2>
+      <div class="head" id="date_header"> <H2 >Sensor {{ sensor |safe }} on {{ day |safe }}/{{ month |safe }}/{{ year |safe }} at {{ start_hour |safe }}:{{ start_minute |safe }}:{{ start_second|safe }} to {{ end_hour |safe }}:{{ end_minute |safe }}:{{ end_second |safe }}</H2></div>
       <div id="curve_chart" style="width: 900px; height: 500px"></div>
     {% else %}
       <H1>ERROR, NO DATA</H1>
     {% endif %}
     
-    <!--    Loading text    -->
-    <div id="loading" ><H2>... LOADING ...</H2></div>
+    <br>
+    
+    <div id="fresca_run_div"></div>
 
   </body>
 </html>

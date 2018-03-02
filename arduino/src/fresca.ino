@@ -22,9 +22,8 @@ Author: Leonardo Capossio
 Project: 'fresca'
 Description:
 
-*This program will correctly display temperature on the LCD and 7-seg displays for up to 8 sensors
+*This program will correctly display temperature on the LCD and 7-seg displays for up to 8 sensors/processes
 *It will also monitor all the sensors temperature and activate cooling according to user settings
-*Pinout can be lookedup/changed in this file where it says " PINOUT_LINE "
 *The menu can be navigated by pressing the 'Select' key, which will cycle through:
  temperature display, CoolOn threshold setting, CoolOff threshold setting and Offset calibration setting
 *The CoolOn and CoolOff settings can be modified by pressing the right/left keys,

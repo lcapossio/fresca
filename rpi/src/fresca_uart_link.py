@@ -2,8 +2,10 @@
 
 #fresca project by Leonardo Capossio
 
-#sys.argv[1], Path to dump log files to
-#sys.argv[2], Logging interval in seconds (max 59)
+#Script arguments:
+#sys.argv[1]: Path to dump log files to
+#sys.argv[2]: Logging interval in seconds (max 59)
+#sys.argv[3]: Compress=1, else don't compress log files (just dump raw CSV files)
 
 
 import time,datetime
@@ -13,7 +15,7 @@ import sys
 import fresca_data_log #Data logging
 import fresca_logging  #Log files managing
 
-#Commands/responses
+#fresca-link Commands/responses
 START_CMD = int(0xA5);
 FLUSH_CMD = int(0x1A);
 IDLE_CMD  = int(0xAA);
@@ -128,6 +130,13 @@ def rx_packet(port):
     
     #No packet or wrong checksum
     return False
+    
+    
+#####################################################
+#####################################################
+#####################################################
+#####################################################
+#Script
 
 iter=0
 success=0
@@ -135,14 +144,16 @@ failure=0
 bad_crc=0
 
 
-if len(sys.argv) != 3:
+if len(sys.argv) != 4:
   print('Too few arguments')
   print('[0]: Path to dump log files to')
   print('[1]: Logging interval')
+  print('[2]: Compress=1, else don\'t compress')
   quit()
   
 log_path=sys.argv[1] #Path to dump log files to
 log_interval=int(sys.argv[2]) #Logging interval in seconds (max 59)
+do_compress=(int(sys.argv[3])==1) #
 
 #Open serial port
 port = serial.Serial("/dev/serial0", baudrate=57600, timeout=3.0)
@@ -150,11 +161,13 @@ print("Starting UART test...")
 port.reset_input_buffer()
 
 #Open/create logs
-log_handle=fresca_logging.start_logging(log_path)
+log_handle=fresca_logging.start_logging(log_path,do_compress)
 
+last_time = datetime.datetime.today().second
+
+#Main loop, receive packets from controller, parse them and log the data
 try:
   while True:
-    last_time = datetime.datetime.today().second
     
     packet = rx_packet(port)
     
@@ -174,16 +187,17 @@ try:
       while ( ((last_time+log_interval)%60) != (datetime.datetime.today().second)):
         pass
       
+      today = datetime.datetime.today()
+      last_time = today.second
+      
       #Write data to log
       start_time=time.time()
-      
-      today = datetime.datetime.today()
-      
+
       log_handle=fresca_data_log.LogTempSamples(log_handle,today,sensor_data)
       
       print("Logging took: "+str((time.time()-start_time)*1000))
-      
-  
+
+#Exit!
 except KeyboardInterrupt: # Ctrl+C pressed
   fresca_logging.end_logging(log_handle)
   port.close()
