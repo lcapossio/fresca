@@ -21,9 +21,22 @@
                                   )
         };
         
+        function printDatapoints(num_dp) {
+            $("#data_points").html(
+                                    "Datapoints=".concat(
+                                    num_dp.toString())
+                                  )
+        };
+        
+        function printExecTime(time) {
+            $("#exec_time").html(
+                                    "Time=".concat(
+                                    time.toString()," sec")
+                                  )
+        };
         
         function getChartData() {
-        
+          var start_time = new Date().getTime();
           var movavg_checked=0
           if ($('#movavg_check').is(':checked')) {
             movavg_checked = 1;
@@ -51,6 +64,9 @@
                <!-- console.log(response); -->
                drawChart(response);
                hideloading();
+               var end_time = new Date().getTime();
+               var time = (end_time - start_time)/1000;
+               printExecTime(time);
              },
              error:function (xhr, ajaxOptions, thrownError){
                console.log("Error: ".concat(xhr.status," data not available for that date"));
@@ -97,7 +113,7 @@
               viewWindowMode:'explicit',
               viewWindow: {
                 max:35.0,
-                min:5.0
+                min:0.0
               }
             }
             
@@ -108,6 +124,7 @@
           chart.draw(data, options);
           
           printDate();
+          printDatapoints(data_arr.length-1);
           
         }
         
@@ -181,7 +198,7 @@
       <div class="input-group">
           <span class="input-group-addon">Day</span>
               <select name="day_select" id="day_select" class="selectpicker form-control">
-                {% for d in range(1,31) %}
+                {% for d in range(1,32) %}
                   <option value="{{ d }}" {% if day == d %} selected {% endif %}>{{ d }}</option>
                 {% endfor %}
               </select>
@@ -272,6 +289,9 @@
     {% else %}
       <H1>ERROR, NO DATA</H1>
     {% endif %}
+    
+    <div id="data_points"></div>
+    <div id="exec_time"></div>
     
     <br>
     
