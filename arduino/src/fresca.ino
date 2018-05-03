@@ -260,6 +260,11 @@ void setup(void)
             TempControllers[i] = new TempController<TEMP_DATA_TYPE>(TempController_type::Heat, &pins[1], &thresholds[2], &limits[2], THRESHOLD_STEP);
         }
     }
+    //Initialize pump
+    if (g_WaterPumpEn[0]!=0)
+    {
+      digitalWrite(g_WaterPump[0], LOW);
+    }
     Serial.println("Done!");
     //////////////////////////////////////////////////
     
@@ -594,6 +599,7 @@ inline void read_temp_sensors()
     char    print_buf[MAX_BUF_CHARS];
     static uint32_t end_time=0;
     uint32_t start;
+    uint8_t turn_on_pump = false;
         
     //Print debug stuff
     if (DEBUG_PERF)
@@ -649,6 +655,11 @@ inline void read_temp_sensors()
             //Call temperature controller class to update its variables and update actuator's state
             TempControllers[sensor]->UpdateTemp(g_TempReading[sensor]);
             
+            //Check if cooling actuator was turned on, if it was turn on the pump
+            if (TempControllers[sensor]->GetState() == TempController_state_type::Cooling)
+            {
+              turn_on_pump = true;
+            }
             //////////////////////////////////////////////////////////////////
             //Printing
             //////////////////////////////////////////////////////////////////
@@ -690,6 +701,24 @@ inline void read_temp_sensors()
               PrintHumidityLCD(g_HumReading[sensor],reading_ok==false,&lcd);
         }
     }
+    
+    //////////////
+    //Water Pump
+    //If any of the Cooling actuators was turned on, turn on the water pump
+    if (g_WaterPumpEn[0]!=0)
+    {
+      if (turn_on_pump)
+      {
+        //Turn the pump on
+        digitalWrite(g_WaterPump[0], HIGH);
+      }
+      else
+      {
+        //Turn the pump off
+        digitalWrite(g_WaterPump[0], LOW);
+      }
+    }
+    //////////////
     
     //Print debug stuff
     if (DEBUG_PERF)

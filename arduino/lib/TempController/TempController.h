@@ -58,9 +58,10 @@ Description:
     #endif
     ////////////////////////////////////////
 
-    enum class TempActuator_type       : uint8_t {Heat=0, Cool=1};
-    enum class TempActuator_state_type : uint8_t {Off=0 , On=1};
-    enum class TempController_type     : uint8_t {Heat=0, Cool=1, Both=2};
+    enum class TempActuator_type          : uint8_t {Heat=0, Cool=1};
+    enum class TempActuator_state_type    : uint8_t {Off=0 , On=1};
+    enum class TempController_type        : uint8_t {Heat=0, Cool=1, Both=2};
+    enum class TempController_state_type  : uint8_t {Off=0, Heating=1, Cooling=2};
     
     ////////////////////////////////////////
     template <typename Temp_type> //Temp type has to be a fixed point (integer) type with +,-,< and > operators clearly defined
@@ -111,6 +112,7 @@ Description:
             void UpdateTemp(Temp_type new_temp);
             Temp_type UpdateOnTh (uint8_t inc_dec, uint8_t Actuator);
             Temp_type UpdateOffTh(uint8_t inc_dec, uint8_t Actuator);
+            TempController_state_type GetState();
             
         private:
             TempController_type _ControllerType;
@@ -372,6 +374,7 @@ TempController<Temp_type>::TempController(TempController_type ControllerType, ui
     {
         case TempController_type::Both:
             //Cooling and Heating
+            //Index 0: Cooling, Index 1: Heating
             _Actuators[0] = new TempActuator<Temp_type>(TempActuator_type::Cool, Thresholds[0], Thresholds[1], Pins[0], Limits[0], Limits[1], MinStep);
             _Actuators[1] = new TempActuator<Temp_type>(TempActuator_type::Heat, Thresholds[2], Thresholds[3], Pins[1], Limits[2], Limits[3], MinStep);
         break;
@@ -393,6 +396,7 @@ TempController<Temp_type>::TempController(TempController_type ControllerType, ui
     }
 }
 
+//Update temperature variable
 template <typename Temp_type>
 void TempController<Temp_type>::UpdateTemp(Temp_type new_temp)
 {
@@ -432,6 +436,7 @@ void TempController<Temp_type>::UpdateTemp(Temp_type new_temp)
     
 }
 
+//Update On threshold of actuator
 template <typename Temp_type>
 Temp_type TempController<Temp_type>::UpdateOnTh(uint8_t inc_dec, uint8_t Actuator)
 {
@@ -447,7 +452,7 @@ Temp_type TempController<Temp_type>::UpdateOnTh(uint8_t inc_dec, uint8_t Actuato
             newth = _Actuators[Actuator]->UpdateOnTh(inc_dec);
         break;
         default:
-            //Cooling or Heating alone, update temperature
+            //Cooling or Heating alone, update threshold
             newth = _Actuators[0]->UpdateOnTh(inc_dec);
         break;
     }
@@ -455,6 +460,7 @@ Temp_type TempController<Temp_type>::UpdateOnTh(uint8_t inc_dec, uint8_t Actuato
     return newth;
 }
 
+//Update Off threshold of actuator
 template <typename Temp_type>
 Temp_type TempController<Temp_type>::UpdateOffTh(uint8_t inc_dec, uint8_t Actuator)
 {
@@ -470,22 +476,61 @@ Temp_type TempController<Temp_type>::UpdateOffTh(uint8_t inc_dec, uint8_t Actuat
             newth = _Actuators[Actuator]->UpdateOffTh(inc_dec);
         break;
         default:
-            //Cooling or Heating alone, update temperature
+            //Cooling or Heating alone, update threshold
             newth = _Actuators[0]->UpdateOffTh(inc_dec);
         break;
     }
     
     return newth;
 }
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+
+//Get the controller state
+template <typename Temp_type>
+TempController_state_type TempController<Temp_type>::GetState()
+{
+  TempController_state_type ret_val;
+  
+  switch(_ControllerType)
+  {
+    case TempController_type::Both:
+      if (_Actuators[0]->GetState() == TempActuator_state_type::On)
+      {
+        ret_val = TempController_state_type::Cooling;
+      }
+      else if (_Actuators[1]->GetState() == TempActuator_state_type::On)
+      {
+        ret_val = TempController_state_type::Heating;
+      }
+      else
+      {
+        ret_val = TempController_state_type::Off;
+      }
+    break;
+    case TempController_type::Heat:
+      //Heating alone
+      if (_Actuators[0]->GetState() == TempActuator_state_type::On)
+      {
+        ret_val = TempController_state_type::Heating;
+      }
+      else
+      {
+        ret_val = TempController_state_type::Off;
+      }
+    break;
+    default:
+      //Cooling alone
+      if (_Actuators[0]->GetState() == TempActuator_state_type::On)
+      {
+        ret_val = TempController_state_type::Cooling;
+      }
+      else
+      {
+        ret_val = TempController_state_type::Off;
+      }
+    break;
+  }
+  
+  return ret_val;
+}
+
 #endif

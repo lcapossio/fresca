@@ -38,9 +38,11 @@ Fresca implementation related/board specific data
 //Define pinout for MAXIMUM number of sensors (MAX_NUM_TEMP_SENSORS), if less sensors are actually implemented (NUM_SENSORS), the rest of the pins will not be used or touched at all
 const uint8_t gc_7seg_dio_pins[MAX_NUM_TEMP_SENSORS]   = {7,14,15,16,17,43,44,20};   //All TM1637 DIO are specified here
 const uint8_t gc_7seg_clk_pins                         = {8};                        //One clock for all TM1637 displays
-const uint8_t g_CoolerPins[MAX_NUM_TEMP_SENSORS]       = {9,21,22,23,24,25,26,27};   //Contains pin number for relay
+const uint8_t g_WaterPump[1]                           = {45};                       //Contains pin number for water pump relay
+const uint8_t g_WaterPumpEn[1]                         = {1};                        //Enable for water pump relay
+const uint8_t g_CoolerPins[MAX_NUM_TEMP_SENSORS]       = {9,21,22,23,24,25,26,27};   //Contains pin number for relay actuator for cooling
 const uint8_t g_CoolerEn[MAX_NUM_TEMP_SENSORS]         = {1,1,1,1,1,1,1,1};          //Enable for Cooler actuator (otherwise temperature control is not implemented)
-const uint8_t g_HeaterPins[MAX_NUM_TEMP_SENSORS]       = {35,36,37,38,39,40,41,42};  //Contains pin number for relay
+const uint8_t g_HeaterPins[MAX_NUM_TEMP_SENSORS]       = {35,36,37,38,39,40,41,42};  //Contains pin number for relay actuator for heating
 const uint8_t g_HeaterEn[MAX_NUM_TEMP_SENSORS]         = {1,1,1,1,1,1,1,1};          //Enable for Heater actuator (otherwise temperature control is not implemented)
 const uint8_t gc_lcd_pins[6]                           = {12, 11, 5, 4, 3, 2};       //LCD 16x2 based on the Hitachi HD44780 controller (rs, enable, d4, d5, d6, d7)
 const uint8_t gc_keypad_pins                           = 0;                          //Analog Keypad on the LCD PCB (has to be an analog pin)
