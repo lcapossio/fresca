@@ -1,0 +1,3 @@
+This branch introduces fresca-link and fresca-webapp
+fresca-link has to be run in an host (PC, Rapsberry Pi or the like) to collect data from the Arduino using a UART
+the webapp gathers data from fresca-link log files and shows it in a web-like interface

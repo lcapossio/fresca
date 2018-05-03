@@ -22,9 +22,8 @@ Author: Leonardo Capossio
 Project: 'fresca'
 Description:
 
-*This program will correctly display temperature on the LCD and 7-seg displays for up to 8 sensors
+*This program will correctly display temperature on the LCD and 7-seg displays for up to 8 sensors/processes
 *It will also monitor all the sensors temperature and activate cooling according to user settings
-*Pinout can be lookedup/changed in this file where it says " PINOUT_LINE "
 *The menu can be navigated by pressing the 'Select' key, which will cycle through:
  temperature display, CoolOn threshold setting, CoolOff threshold setting and Offset calibration setting
 *The CoolOn and CoolOff settings can be modified by pressing the right/left keys,
@@ -49,6 +48,7 @@ Description:
 #include <DFR_Key.h>
 #include <EEPROM.h>
 #include <TempController.h>
+#include <fresca_link.h>
 #include <fresca_pinout.h>
 #include <fresca_sensor.h>
 #include <fresca_utils.h>
@@ -87,7 +87,7 @@ void loop(void)
     SET_TIMER1(TIMER_20MS);     // Set timer
     TIMSK1 |= (1 << OCIE1A);    // enable timer compare interrupt
     
-    Serial.print("***Executing Main Loop...");Serial.println();
+    Serial.println("***Executing Main Loop...");
     
     uint32_t start_time;
     
@@ -103,6 +103,7 @@ void loop(void)
             //Update sensors
             start_time = millis();
             read_temp_sensors();
+            send_temp_link(NUM_SENSORS*2, (uint8_t *) g_TempReading);
         }
     }
 }
@@ -118,12 +119,14 @@ void setup(void)
     //////////////////////////////////////////////////
     //Initialize Serial
     Serial.begin(9600);
-    Serial.print("---------------");Serial.println();
-    Serial.print("'fresca' project");Serial.println();
-    Serial.print("Aguantia  ...   ");Serial.println();
-    Serial.print("---------------");Serial.println();
+    Serial.println("---------------");
+    Serial.println("'fresca' project");
+    Serial.println("Aguantia  ...   ");
+    Serial.println("---------------");
     //////////////////////////////////////////////////
 
+    setup_fresca_link();
+    
     //////////////////////////////////////////////////
     //Initialize LCD
     Serial.print("Initializing LCD...");
@@ -132,7 +135,7 @@ void setup(void)
     lcd.print("'fresca' project");
     lcd.setCursor(0,1);
     lcd.print("Aguantia  ...   ");
-    Serial.print("Done!");Serial.println();
+    Serial.println("Done!");
     //////////////////////////////////////////////////
 
     //////////////////////////////////////////////////
@@ -159,7 +162,7 @@ void setup(void)
         g_disp7seg[i]->setBrightness(0x0f,true); //Turn-on again (end blinking)
         g_disp7seg[i]->showNumberDec(1305,true);
     }
-    Serial.print("Done!");Serial.println();
+    Serial.println("Done!");
     //////////////////////////////////////////////////
 
     //////////////////////////////////////////////////
@@ -168,14 +171,14 @@ void setup(void)
     
     g_fresca_sensor = new fresca_sensor(NUM_SENSORS,gc_temp_sens_type,gc_temp_sens_pins,&Serial);
     
-    Serial.print("Done!");Serial.println();
+    Serial.println("Done!");
     //////////////////////////////////////////////////
     
     //////////////////////////////////////////////////
     //Initialize keypad
     Serial.print("Initializing keypad...");
     keypad.setRate(KEYPAD_REFRESH_RATE); //Sets the sample rate at once every x milliseconds.
-    Serial.print("Done!");Serial.println();
+    Serial.println("Done!");
     //////////////////////////////////////////////////
     
     g_showSensLCD=0; //Show temperature for sensor0
@@ -225,7 +228,7 @@ void setup(void)
             EEPROM.get(eeprom_offset, g_HeatOffThresh[i]);eeprom_offset+=sizeof(TEMP_DATA_TYPE);
         }
     }
-    Serial.print("Done!");Serial.println();
+    Serial.println("Done!");
     //////////////////////////////////////////////////
     
     //////////////////////////////////////////////////
@@ -257,7 +260,7 @@ void setup(void)
             TempControllers[i] = new TempController<TEMP_DATA_TYPE>(TempController_type::Heat, &pins[1], &thresholds[2], &limits[2], THRESHOLD_STEP);
         }
     }
-    Serial.print("Done!");Serial.println();
+    Serial.println("Done!");
     //////////////////////////////////////////////////
     
     //////////////////////////////////////////////////
@@ -267,12 +270,12 @@ void setup(void)
     TCCR1B = 0;
     TCNT1  = 0; //Timer count register
     TCCR1B |= (1 << WGM12) | (1 << CS12);               // Clear Timer on Compare (CTC) mode ; 256 prescaler
-    Serial.print("Done!");Serial.println();
+    Serial.println("Done!");
     //////////////////////////////////////////////////
     
-    Serial.print("***************************");Serial.println();
-    Serial.print("***Starting main program***");Serial.println();
-    Serial.print("***************************");Serial.println();
+    Serial.println("***************************");
+    Serial.println("***Starting main program***");
+    Serial.println("***************************");
     
     delay_noInterrupts(INIT_DELAY);
 }

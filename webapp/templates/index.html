@@ -1,0 +1,16 @@
+<html>
+  <head>
+    
+  </head>
+  <body>
+    <H1>Welcome to fresca project!</H1>
+    {% if fresca_link_running == True %}
+        <H2 style="color:green;">fresca-link is running</H2>
+    {% else %}
+        <H2 style="color:red;">fresca-link is NOT running!</H2>
+    {% endif %}
+    <form action="{{ url_for('chart') }}">
+        <input type="submit" value="Go to charts" />
+    </form>
+  </body>
+</html>
