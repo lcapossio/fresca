@@ -48,11 +48,14 @@ Description:
 #include <DFR_Key.h>
 #include <EEPROM.h>
 #include <TempController.h>
-#include <fresca_link.h>
 #include <fresca_pinout.h>
 #include <fresca_sensor.h>
 #include <fresca_utils.h>
 #include <fresca.h>
+
+#ifndef NOFRESCALINK
+    #include <fresca_link.h>
+#endif
 
 ////////////////////////////////////////
 //Global variables
@@ -103,7 +106,9 @@ void loop(void)
             //Update sensors
             start_time = millis();
             read_temp_sensors();
-            send_temp_link(NUM_SENSORS*2, (uint8_t *) g_TempReading);
+            #ifndef NOFRESCALINK
+                send_temp_link(NUM_SENSORS*2, (uint8_t *) g_TempReading);
+            #endif
         }
     }
 }
@@ -124,8 +129,9 @@ void setup(void)
     Serial.println("Aguantia  ...   ");
     Serial.println("---------------");
     //////////////////////////////////////////////////
-
-    setup_fresca_link();
+    #ifndef NOFRESCALINK
+        setup_fresca_link();
+    #endif
     
     //////////////////////////////////////////////////
     //Initialize LCD
