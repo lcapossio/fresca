@@ -95,26 +95,42 @@ Description:
     #define NUM_TEMP_HEATERS       NUM_SENSORS  //Number of heating actuators (relays) (<=NUM_SENSORS)
     #define DS1820_CONFIG_REG      0x7F         //12-bit resolution, no more options
     
-    //Debug
+    //Enable/disable debug
     #define DEBUG_SENSORS          0       //!=0 serial debug messages are enabled (Key press messages)
     #define DEBUG_KEYS             0       //!=0 serial debug messages are enabled (Sensor data and related messages)
     #define DEBUG_PERF             0       //!=0 serial debug messages are enabled (Performance and RAM usage)
-    //
+    
+    //User can modify this defines to suit his/her project needs
     #define TEMP_FAHRENHEIT        0       //!=0 temperature is displayed in fahrenheit, otherwise in celsius
     #define USE_CRC                1       //!=0 DS1820 CRC check is enabled
     #define MAX_BUF_CHARS         64       //Max. characters for print buffer
     #define TEMP_POLL_MSEC       750       //Temperature polling in milliseconds
     #define LCD_WIDTH             16       //LCD horizontal length
     #define LCD_HEIGHT             2       //LCD vertical length
-    #define RELAY_ACTIVE           0       //0: Active LOW relays, 1 active HIGH relays
+    #define RELAY_ON             LOW       //LOW: Active LOW relays, HIGH active HIGH relays
+
     #define KEYPAD_REFRESH_RATE   20       //Sets the sample rate of the keypad at once every x milliseconds.
+    #define INIT_DELAY            2000     //Time to before starting main loop in milliseconds
+    
+    ////////////////////////////////////////
+    //Don't modify
     #define TIMER_20MS            ((CRISTAL_FREQ_HZ/TIMER1_PRESCALE)*0.02)  //OCR1A value
     #define TIMER_100MS           ((CRISTAL_FREQ_HZ/TIMER1_PRESCALE)*0.1)   //OCR1A value
     #define TIMER_250MS           ((CRISTAL_FREQ_HZ/TIMER1_PRESCALE)*0.25)  //OCR1A value
     #define TIMER_500MS           ((CRISTAL_FREQ_HZ/TIMER1_PRESCALE)*0.5)   //OCR1A value
-    #define INIT_DELAY            2000                   //Time to before starting main loop in milliseconds
+    
+    //Determine relay activation levels (active HIGH or active LOW)
+    #if RELAY_ON == LOW
+      #define RELAY_OFF HIGH
+    #elif RELAY_ON == HIGH
+      #define RELAY_OFF LOW
+    #else
+      //Default
+      #define RELAY_ON  LOW
+      #define RELAY_OFF HIGH
+    #endif
     ////////////////////////////////////////
-
+    
     ////////////////////////////////////////
     //EEPROM, don't modify this
     #define EEPROM_MAGIC_NUM_ADDR 0             //Byte variable stored in this location indicates EEPROM has been written previously

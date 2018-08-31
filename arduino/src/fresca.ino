@@ -263,7 +263,7 @@ void setup(void)
     //Initialize pump
     if (g_WaterPumpEn[0]!=0)
     {
-      digitalWrite(g_WaterPump[0], LOW);
+      digitalWrite(g_WaterPump[0], RELAY_OFF);
     }
     Serial.println("Done!");
     //////////////////////////////////////////////////
@@ -710,12 +710,12 @@ inline void read_temp_sensors()
       if (turn_on_pump)
       {
         //Turn the pump on
-        digitalWrite(g_WaterPump[0], HIGH);
+        digitalWrite(g_WaterPump[0], RELAY_ON);
       }
       else
       {
         //Turn the pump off
-        digitalWrite(g_WaterPump[0], LOW);
+        digitalWrite(g_WaterPump[0], RELAY_OFF);
       }
     }
     //////////////
