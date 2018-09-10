@@ -263,6 +263,7 @@ void setup(void)
     //Initialize pump
     if (g_WaterPumpEn[0]!=0)
     {
+      pinMode(g_WaterPump[0], OUTPUT);
       digitalWrite(g_WaterPump[0], RELAY_OFF);
     }
     Serial.println("Done!");
