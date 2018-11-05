@@ -57,14 +57,14 @@ Description:
     #define CRISTAL_FREQ_HZ        (CRISTAL_FREQ_MHZ*1e6)   //Arduino operating frequency Floating point in Hertz
     #define TIMER1_PRESCALE        256.0                    //Floating point, don't change
     #define TEMP_FRAC_BITS         4                        //Fractional bits for temperature representation
-    #define HUM_FRAC_BITS         4                         //Fractional bits for humidity representation
+    #define HUM_FRAC_BITS          4                        //Fractional bits for humidity representation
     #define TEMP_SCALE             (1<<TEMP_FRAC_BITS)      //Scaling factor to transform floating point to fixed point
     
     //Define steps and max/min temperature values in deg celsius, user can modify this
     #define THRESHOLD_STEP_FP      0.25   //In floating point
     #define OFFSET_STEP_FP         0.0625 //In floating point
-    #define MAX_TEMP_FP            30.0   //Max Temp for CoolOn
-    #define MIN_TEMP_FP            5.0    //Min Temp for CoolOff
+    #define MAX_TEMP_FP            85.0   //Max Temp for thresholds
+    #define MIN_TEMP_FP            -55.0  //Min Temp for thresholds
     #define MAX_OFF_TEMP_FP        1.0    //Max Temp for OffsetCalib
     #define MIN_OFF_TEMP_FP        1.0    //Min Temp for OffsetCalib (will be interpreted as negative)
     #define COOLON_DFLT_FP         25.0   //
