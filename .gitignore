@@ -1,0 +1,18 @@
+# Arduino CLI
+bin/
+arduino-cli.zip
+arduino-cli.yaml
+
+# Python
+__pycache__/
+*.pyc
+webapp/__pycache__/
+webapp/*.pyc
+
+# Logs
+webapp/logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
