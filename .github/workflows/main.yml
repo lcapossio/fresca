@@ -28,25 +28,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - name: Compile fresca.ino
-      uses: arduino/compile-sketches@v1
-      with:
-        fqbn: "arduino:avr:mega:cpu=atmega2560"
-        sketch-paths: |
-          - arduino/fresca
-          - test
-        libraries: |
-          - name: "LiquidCrystal"
-          - source-path: arduino/lib/Adafruit_Sensor
-          - source-path: arduino/lib/DFR_Key
-          - source-path: arduino/lib/DHT-sensor-library
-          - source-path: arduino/lib/OneWire
-          - source-path: arduino/lib/TM1637
-          - source-path: arduino/lib/TempController
-          - source-path: arduino/lib/ds1820
-          - source-path: arduino/lib/fresca
-          - source-path: arduino/lib/fresca_link
-          - source-path: arduino/lib/fresca_sensor
-          - source-path: arduino/lib/fresca_utils
-        platforms: |
-          - name: "arduino:avr"
+    - name: Install Arduino CLI
+      uses: arduino/setup-arduino-cli@v2
+    - name: Install platform
+      run: |
+        arduino-cli core update-index
+        arduino-cli core install arduino:avr
+    - name: Install LiquidCrystal
+      run: arduino-cli lib install "LiquidCrystal"
+    - name: Compile fresca
+      run: |
+        arduino-cli compile --fqbn arduino:avr:mega:cpu=atmega2560 --libraries arduino/lib arduino/fresca
+    - name: Compile test
+      run: |
+        arduino-cli compile --fqbn arduino:avr:mega:cpu=atmega2560 --libraries arduino/lib test
