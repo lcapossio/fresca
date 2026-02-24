@@ -26,6 +26,22 @@ def main():
     fqbn = "arduino:avr:mega:cpu=atmega2560"
     lib_path = os.path.join(base_dir, "arduino", "lib")
     
+    # Initialize and install requirements
+    print("\n--- Preparing environment ---")
+    
+    # 1. Update index
+    run_command([arduino_cli, "core", "update-index"])
+    
+    # 2. Install platform if missing
+    run_command([arduino_cli, "core", "install", "arduino:avr"])
+    
+    # 3. Install registry libraries
+    run_command([arduino_cli, "lib", "install", "LiquidCrystal"])
+
+    # 4. Check for submodules
+    if not os.path.exists(os.path.join(lib_path, "TM1637", "TM1637Display.h")):
+        print("Warning: Submodules seem missing. Please run: git submodule update --init --recursive")
+
     sketches = [
         os.path.join(base_dir, "arduino", "fresca"),
         os.path.join(base_dir, "test")
