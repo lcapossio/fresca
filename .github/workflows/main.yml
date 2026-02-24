@@ -37,6 +37,16 @@ jobs:
           - test
         libraries: |
           - name: "LiquidCrystal"
-          - source-path: arduino/lib
+          - source-path: arduino/lib/Adafruit_Sensor
+          - source-path: arduino/lib/DFR_Key
+          - source-path: arduino/lib/DHT-sensor-library
+          - source-path: arduino/lib/OneWire
+          - source-path: arduino/lib/TM1637
+          - source-path: arduino/lib/TempController
+          - source-path: arduino/lib/ds1820
+          - source-path: arduino/lib/fresca
+          - source-path: arduino/lib/fresca_link
+          - source-path: arduino/lib/fresca_sensor
+          - source-path: arduino/lib/fresca_utils
         platforms: |
           - name: "arduino:avr"
