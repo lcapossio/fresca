@@ -1,16 +1,12 @@
-<html>
-  <head>
-    
-  </head>
-  <body>
-    <H1>Welcome to fresca project!</H1>
-    {% if fresca_link_running == True %}
-        <H2 style="color:green;">fresca-link is running</H2>
-    {% else %}
-        <H2 style="color:red;">fresca-link is NOT running!</H2>
-    {% endif %}
-    <form action="{{ url_for('chart') }}">
-        <input type="submit" value="Go to charts" />
-    </form>
-  </body>
-</html>
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="card">
+  <h2>Welcome to the FRESCA Dashboard</h2>
+  <p>Monitor and control your temperature processes with ease.</p>
+  <br>
+  <a href="{{ url_for('chart') }}" class="btn" style="text-decoration: none; display: inline-block;">
+    <input type="button" value="View Real-time Charts">
+  </a>
+</div>
+{% endblock %}

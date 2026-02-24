@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fresca Monitor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>FRESCA PROJECT</h1>
+            <div id="status-container">
+                {% if fresca_link_running %}
+                    <span class="status-badge status-running">fresca-link is running</span>
+                {% else %}
+                    <span class="status-badge status-stopped">fresca-link is NOT running</span>
+                {% endif %}
+            </div>
+        </header>
+
+        <nav>
+            <a href="{{ url_for('index') }}" class="{% if request.endpoint == 'index' %}active{% endif %}">Dashboard</a>
+            <a href="{{ url_for('chart') }}" class="{% if request.endpoint == 'chart' %}active{% endif %}">Monitor</a>
+        </nav>
+        <br>
+
+        <main>
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <script>
+        function updateStatus() {
+            $.ajax({
+                type: "POST",
+                url: "{{ url_for('fresca_running') }}",
+                dataType: "json",
+                success: function(response) {
+                    const statusContainer = $('#status-container');
+                    if (response === true) {
+                        statusContainer.html('<span class="status-badge status-running">fresca-link is running</span>');
+                    } else {
+                        statusContainer.html('<span class="status-badge status-stopped">fresca-link is NOT running</span>');
+                    }
+                }
+            });
+        }
+        setInterval(updateStatus, 5000);
+    </script>
+</body>
+</html>

@@ -41,97 +41,93 @@ def fresca_fetch(filename,sensor_idx,start_time=int(0),end_time=int(235959),num_
     #No files!
     return False
   
-  #Buffer all the lines, that is the fastest way! (files need to be small though, relative to available memory) (csvreader sucks)
-  lines=csv_file.readlines()
-    
-  # ######################
-  #Start reading the file
-  # ######################
-  
-  sens_data = []
-  first_sample=True
-  movaverage_len=max(decimate_samples,8)
-  decimate=0
-  total_data_points=0
-  
+  # Iterating over the file object directly is memory-efficient
   try:
-    #Get header info from first row
-    colnum = 0
-    row = lines[0].split(',')
-    for col in row:
+    # Get header info from first row
+    header = next(csv_file).strip().split(',')
     
-      if row[colnum] == 'Time':
-        time_col = colnum
-      if row[colnum] == 'Sensor index':
-        sens_idx_col = colnum
-      if row[colnum] == 'Temperature':
-        temp_col = colnum
-        
-      colnum += 1
+    time_col = header.index('Time') if 'Time' in header else 0
+    sens_idx_col = header.index('Sensor index') if 'Sensor index' in header else 3
+    temp_col = header.index('Temperature') if 'Temperature' in header else 1
       
-    #Loop through rows in reader making jumps every 'num_sensors'
+    #Loop through rows in reader
     #Grab the temperature from the correct sensor index
-    if use_moving_avg:
-      step=num_sensors
-    else:
-      step=num_sensors*decimate_samples
+    
+    decimate = 0
+    total_data_points = 0
+    first_sample = True
+    movaverage_len = max(decimate_samples, 8)
+    
+    # We need to skip to the first sample that matches sensor_idx
+    # The files are written with all sensors sequentially for each time step
+    # So we can calculate how many lines to skip or just check if row[sens_idx_col] == str(sensor_idx)
+    
+    for row_str in csv_file:
+      row = row_str.strip().split(',')
+      if not row or len(row) <= max(time_col, sens_idx_col, temp_col):
+        continue
       
-    for line in itertools.islice(lines, sensor_idx+1, None, step):
-      row = line.split(',') #Split csv fields into separate strings
-      time_str=str(row[time_col])
-      time_int=int(time_str)
-      sample=float(row[temp_col])
+      try:
+        current_sens_idx = int(row[sens_idx_col])
+      except (ValueError, IndexError):
+        continue
+
+      if current_sens_idx != sensor_idx:
+        continue
+
+      time_str = row[time_col]
+      try:
+        time_int = int(time_str)
+      except ValueError:
+        continue
+
+      if time_int < start_time:
+        continue
       
-      if (time_int >= start_time):
+      if time_int > end_time:
+        break
       
-        if (end_time < time_int): #Stop if end time has passed (samples are assumed sorted in ascending time)
-          break
-          
-        if use_moving_avg:
-        
-          if first_sample:
-            samples=[sample]*movaverage_len #Initialize the moving average window
-            cumsum=sample*movaverage_len    #Initialize the cumulative sum
-            result=sample                   #
-            first_sample=False
-          else:
-            cumsum+=sample-samples.pop(0) #also remove old sample
-            samples.append(sample) #insert new sample
-        
-          if decimate == decimate_samples-1:
-            result=cumsum/movaverage_len
-            decimate=0
-            sens_data.append( [ time_str[0:2]+':'+time_str[2:4]+':'+time_str[4:6],
-                               result ] )
-            total_data_points+=1
-          else:
-            decimate+=1
-            
+      try:
+        sample = float(row[temp_col])
+      except ValueError:
+        continue
+
+      if use_moving_avg:
+        if first_sample:
+          samples = [sample] * movaverage_len
+          cumsum = sample * movaverage_len
+          first_sample = False
         else:
+          cumsum += sample - samples.pop(0)
+          samples.append(sample)
         
-          result=sample
-          total_data_points+=1
-          sens_data.append( [ time_str[0:2]+':'+time_str[2:4]+':'+time_str[4:6],
-                             result ] )
-        if total_data_points == max_datapoints:
-          #Finish here so we won't hurt performance
-          print('Fetched only '+str(max_datapoints)+' to save performance')
-          break
+        if decimate == decimate_samples - 1:
+          result = cumsum / movaverage_len
+          decimate = 0
+          sens_data.append([time_str[0:2]+':'+time_str[2:4]+':'+time_str[4:6], result])
+          total_data_points += 1
+        else:
+          decimate += 1
+      else:
+        # For decimation without moving average, we only take every Nth sample
+        if decimate == 0:
+          sens_data.append([time_str[0:2]+':'+time_str[2:4]+':'+time_str[4:6], sample])
+          total_data_points += 1
+        
+        decimate = (decimate + 1) % decimate_samples
+
+      if total_data_points >= max_datapoints:
+        print('Fetched '+str(total_data_points)+' data points.')
+        break
 
   except Exception as e:
-    #Probably some read error cause the file is incomplete or broken
-    if len(sens_data) > 1:
-      #Cut the last value from the list and return whatever we got so far
-      del sens_data[-1]
-    else:
-      #Something very wrong with the file or the parsing
-      print('ERROR: Caught \"'+str(e)+'\" while reading '+csv_filename+'. Returning no data')
+    print('ERROR: Caught \"'+str(e)+'\" while reading '+csv_filename)
+    if not sens_data:
       sens_data = False
   
-  #
-  if remove_after_reading:
-    os.remove(csv_filename)
-  
-  csv_file.close()
+  finally:
+    csv_file.close()
+    if remove_after_reading and os.path.isfile(csv_filename):
+      os.remove(csv_filename)
   
   return sens_data
