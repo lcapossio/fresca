@@ -1,0 +1,4 @@
+flask
+psutil
+pytest
+pytest-flask

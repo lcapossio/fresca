@@ -1,0 +1,44 @@
+name: FRESCA CI
+
+on:
+  push:
+    branches: [ main, dev/improve ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  webapp-tests:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r webapp/requirements.txt
+    - name: Run tests
+      run: |
+        cd webapp
+        python -m pytest test_app.py
+
+  arduino-compilation:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Compile fresca.ino
+      uses: arduino/compile-sketches@v1
+      with:
+        fqbn: "arduino:avr:mega:cpu=atmega2560"
+        sketch-paths: |
+          - arduino/src/fresca.ino
+          - test/test.ino
+        libraries: |
+          - source-path: arduino/lib
+        # Some libraries might need to be installed from the registry if not in lib
+        # But looking at Makefile, they seem to be there.
+        # We might need to install AVR platform
+        platforms: |
+          - name: "arduino:avr"
