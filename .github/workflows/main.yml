@@ -33,12 +33,10 @@ jobs:
       with:
         fqbn: "arduino:avr:mega:cpu=atmega2560"
         sketch-paths: |
-          - arduino/src/fresca.ino
-          - test/test.ino
+          - arduino/fresca
+          - test
         libraries: |
+          - name: "LiquidCrystal"
           - source-path: arduino/lib
-        # Some libraries might need to be installed from the registry if not in lib
-        # But looking at Makefile, they seem to be there.
-        # We might need to install AVR platform
         platforms: |
           - name: "arduino:avr"
